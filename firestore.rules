@@ -1,0 +1,117 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isFriendOf(userId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(userId)/friendships/$(request.auth.uid));
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────────────
+
+    match /users/{userId} {
+      // Anyone signed in can read a user's profile (needed to show friend names)
+      allow read: if isSignedIn();
+
+      // Only the owner can write their own profile
+      allow write: if isOwner(userId);
+
+      // Children subcollection: only owner can read/write
+      match /children/{childId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Friendships: owner can read; only Cloud Functions write (via Admin SDK)
+      match /friendships/{friendId} {
+        allow read: if isOwner(userId);
+        allow write: if false; // Cloud Function only
+      }
+
+      // Feed entries: only the owner reads their own feed
+      match /feed/{entryId} {
+        allow read: if isOwner(userId);
+        allow write: if false; // Cloud Function only
+      }
+    }
+
+    // ── Check-ins ─────────────────────────────────────────────────────────────
+
+    match /checkIns/{checkInId} {
+      // Owner can create and update their own check-in
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+
+      // Owner can update status (arrive, leave) and confirmedBy
+      allow update: if isSignedIn() && (
+        // Owner updating their own check-in
+        resource.data.userId == request.auth.uid
+        ||
+        // Friends can add themselves to confirmedBy only
+        (
+          isFriendOf(resource.data.userId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['confirmedBy'])
+        )
+      );
+
+      // Anyone signed in can read check-ins (filtered by feed in practice)
+      allow read: if isSignedIn();
+
+      allow delete: if false;
+    }
+
+    // ── Playgrounds ───────────────────────────────────────────────────────────
+
+    match /playgrounds/{playgroundId} {
+      allow read: if isSignedIn();
+
+      // Signed-in users can create playgrounds
+      allow create: if isSignedIn() &&
+        request.resource.data.createdBy == request.auth.uid;
+
+      // Only Cloud Function updates counts; users cannot write directly
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ── Pending friend requests ───────────────────────────────────────────────
+
+    match /pendingFriendRequests/{requestId} {
+      // Cloud Function creates; sender and recipient can read
+      allow read: if isSignedIn() && (
+        resource.data.fromUserId == request.auth.uid ||
+        resource.data.toUserId == request.auth.uid
+      );
+      allow write: if false; // Cloud Function only
+    }
+
+    // ── QR Nonces — internal only, never client-readable ─────────────────────
+
+    match /qrNonces/{nonceId} {
+      allow read, write: if false; // Cloud Function only
+    }
+
+    // ── User stats ────────────────────────────────────────────────────────────
+
+    match /userStats/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if false; // Cloud Function only
+    }
+
+    // ── Leaderboard ───────────────────────────────────────────────────────────
+
+    match /leaderboard/{periodId} {
+      allow read: if isSignedIn();
+      allow write: if false; // Cloud Function only
+    }
+  }
+}

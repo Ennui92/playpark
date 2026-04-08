@@ -1,0 +1,33 @@
+node_modules/
+.expo/
+dist/
+web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# Firebase
+.firebaserc
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+functions/node_modules/
+functions/lib/
+
+# Secrets - NEVER commit these
+google-services.json
+GoogleService-Info.plist
+src/config/firebase.ts
+
+# OS
+.DS_Store
+*.swp
+
+# Env
+.env
+.env.local
+.env.*.local
