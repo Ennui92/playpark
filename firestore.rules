@@ -94,10 +94,16 @@ service cloud.firestore {
       allow write: if false; // Cloud Function only
     }
 
-    // ── QR Nonces — internal only, never client-readable ─────────────────────
+    // ── QR Nonces ─────────────────────────────────────────────────────────────
+    // Owner can create their own nonce (initial state must be unused).
+    // Validation/consumption happens in the sendFriendRequest Cloud Function
+    // via the Admin SDK, which bypasses these rules.
 
     match /qrNonces/{nonceId} {
-      allow read, write: if false; // Cloud Function only
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.used == false;
+      allow read, update, delete: if false; // Admin SDK only
     }
 
     // ── User stats ────────────────────────────────────────────────────────────

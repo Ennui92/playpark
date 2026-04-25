@@ -23,17 +23,30 @@ export function AddFriendScreen() {
   const [activeTab, setActiveTab] = useState<Tab>('myQR');
   const [qrValue, setQrValue] = useState<string | null>(null);
   const [loadingQR, setLoadingQR] = useState(true);
+  const [qrError, setQrError] = useState<string | null>(null);
   const [cameraPermission, setCameraPermission] = useState<boolean | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanned, setScanned] = useState(false);
 
-  useEffect(() => {
+  async function loadQR() {
     if (!appUser) return;
-    generateQRNonce(appUser.uid).then((nonce) => {
+    setLoadingQR(true);
+    setQrError(null);
+    try {
+      const nonce = await generateQRNonce(appUser.uid);
       // QR encodes: JSON { uid, nonce, ts }
       setQrValue(JSON.stringify({ uid: appUser.uid, nonce, ts: Date.now() }));
+    } catch (err) {
+      console.warn('QR generation failed', err);
+      setQrError("Couldn't generate your QR code. Check your connection and try again.");
+    } finally {
       setLoadingQR(false);
-    });
+    }
+  }
+
+  useEffect(() => {
+    loadQR();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appUser]);
 
   async function requestCamera() {
@@ -121,13 +134,20 @@ export function AddFriendScreen() {
           <Text style={styles.qrInstructions}>
             Show this to a parent friend and ask them to scan it in their PlayPark app.
           </Text>
-          {loadingQR || !qrValue ? (
+          {loadingQR ? (
             <ActivityIndicator color={COLORS.primary} size="large" />
-          ) : (
+          ) : qrError ? (
+            <View style={styles.qrErrorBox}>
+              <Text style={styles.qrErrorText}>{qrError}</Text>
+              <TouchableOpacity style={styles.retryButton} onPress={loadQR}>
+                <Text style={styles.retryButtonText}>Try again</Text>
+              </TouchableOpacity>
+            </View>
+          ) : qrValue ? (
             <View style={styles.qrBox}>
               <QRCode value={qrValue} size={220} color={COLORS.textPrimary} />
             </View>
-          )}
+          ) : null}
           <Text style={styles.qrNote}>QR codes expire after 24 hours for security.</Text>
         </View>
       ) : (
@@ -218,6 +238,20 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   qrNote: { fontSize: FONT_SIZE.sm, color: COLORS.textHint, textAlign: 'center' },
+  qrErrorBox: { alignItems: 'center', gap: SPACING.md, paddingHorizontal: SPACING.lg },
+  qrErrorText: {
+    fontSize: FONT_SIZE.md,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  retryButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.sm,
+  },
+  retryButtonText: { color: '#fff', fontWeight: '700', fontSize: FONT_SIZE.md },
   scanContainer: { flex: 1 },
   scanner: { flex: 1 },
   scanOverlay: {

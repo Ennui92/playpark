@@ -1,32 +1,38 @@
 import {
   collection,
   doc,
+  setDoc,
   getDocs,
-  addDoc,
-  updateDoc,
   query,
   where,
-  serverTimestamp,
   Timestamp,
-  runTransaction,
-  getDoc,
 } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
+import { httpsCallable, getFunctions } from 'firebase/functions';
 import { db } from '@/config/firebase';
 import { Friendship, FriendRequest } from '@/types';
-import { getFunctions } from 'firebase/functions';
 
 const functions = getFunctions();
 
-// ─── QR nonce generation (calls Cloud Function) ───────────────────────────────
+// ─── QR nonce generation ──────────────────────────────────────────────────────
+// The nonce is written directly from the client so QR generation works
+// independently of Cloud Function deployment. The sendFriendRequest Cloud
+// Function still validates and consumes the nonce server-side.
 
 export async function generateQRNonce(userId: string): Promise<string> {
-  const generateNonce = httpsCallable<{ userId: string }, { nonce: string }>(
-    functions,
-    'generateQRNonce'
-  );
-  const result = await generateNonce({ userId });
-  return result.data.nonce;
+  const nonce =
+    Math.random().toString(36).substring(2, 10) +
+    Math.random().toString(36).substring(2, 10) +
+    Date.now().toString(36);
+
+  const expiresAt = Timestamp.fromDate(new Date(Date.now() + 24 * 60 * 60 * 1000));
+
+  await setDoc(doc(db, 'qrNonces', nonce), {
+    userId,
+    expiresAt,
+    used: false,
+  });
+
+  return nonce;
 }
 
 // ─── Send friend request (calls Cloud Function for nonce validation) ──────────

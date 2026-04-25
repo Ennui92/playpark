@@ -93,7 +93,27 @@ npx expo start
    - **Places API**
    - **Geocoding API**
 3. Create an API key, restrict it to your bundle ID / package name
-4. Add to `app.json` under `expo.android.config.googleMaps.apiKey` and `expo.ios.config.googleMapsApiKey`
+4. Set the key in `app.json` under `expo.extra.googleMapsApiKey`
+   (read by `src/utils/places.ts` for reverse-geocoding new playgrounds —
+   falls back to the OS-native geocoder if no key is set).
+5. For native map tiles, also add it under
+   `expo.android.config.googleMaps.apiKey` and `expo.ios.config.googleMapsApiKey`.
+
+---
+
+## 6a. Build an APK via GitHub Actions
+
+The repo ships with `.github/workflows/build-android.yml`, which builds an
+installable APK with EAS and posts the download link to the workflow summary.
+
+1. Update `expo.extra.eas.projectId` in `app.json` with your real EAS project ID
+   (run `eas init` locally once if you don't have one).
+2. Create an Expo access token at
+   [expo.dev → Settings → Access Tokens](https://expo.dev/settings/access-tokens).
+3. In the GitHub repo, add a secret named **`EXPO_TOKEN`** with that token.
+4. Push to `main` (or run the workflow manually from the Actions tab). The
+   "APK ready" summary contains the direct download link — tap it on your
+   phone to install.
 
 ---
 

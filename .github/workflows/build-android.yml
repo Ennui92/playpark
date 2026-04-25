@@ -1,0 +1,68 @@
+name: Build Android APK
+
+# Builds an installable APK via EAS (preview profile) and posts the
+# download link as a workflow summary so a phone can grab it directly.
+#
+# Required repo secret:
+#   EXPO_TOKEN  - personal access token from https://expo.dev/accounts/[user]/settings/access-tokens
+
+on:
+  push:
+    branches:
+      - claude/fix-qr-maps-location-LUa3e
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: EAS Android preview build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Expo / EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run EAS build (Android preview, APK)
+        id: eas
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          # --non-interactive --no-wait queues the build and returns a JSON
+          # describing it; we extract the artifact URL once it finishes.
+          eas build \
+            --platform android \
+            --profile preview \
+            --non-interactive \
+            --json \
+            --wait \
+            > build.json
+          cat build.json
+          ARTIFACT_URL=$(node -e "const b=require('./build.json');const r=Array.isArray(b)?b[0]:b;console.log(r.artifacts?.buildUrl||'');")
+          BUILD_PAGE=$(node -e "const b=require('./build.json');const r=Array.isArray(b)?b[0]:b;console.log('https://expo.dev/accounts/'+r.project.ownerAccount.name+'/projects/'+r.project.slug+'/builds/'+r.id);")
+          echo "artifact_url=$ARTIFACT_URL" >> "$GITHUB_OUTPUT"
+          echo "build_page=$BUILD_PAGE"     >> "$GITHUB_OUTPUT"
+
+      - name: Publish download link to summary
+        run: |
+          {
+            echo "## ✅ APK ready"
+            echo ""
+            echo "**Download (tap on phone):** ${{ steps.eas.outputs.artifact_url }}"
+            echo ""
+            echo "**Build page:** ${{ steps.eas.outputs.build_page }}"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -56,6 +56,10 @@ export function CheckInScreen() {
     });
   }
 
+  function goToAddPlayground() {
+    navigation.navigate('AddPlayground');
+  }
+
   // ── If user is already checked in ─────────────────────────────────────────
 
   if (activeCheckIn) {
@@ -131,10 +135,21 @@ export function CheckInScreen() {
             !loadingPlaces ? (
               <View style={styles.centered}>
                 <Text style={styles.emptyText}>No playgrounds found nearby.</Text>
-                <Text style={styles.emptyHint}>
-                  You can add your local park after checking in.
-                </Text>
+                <Text style={styles.emptyHint}>Be the first to add one.</Text>
               </View>
+            ) : null
+          }
+          ListFooterComponent={
+            !loadingPlaces ? (
+              <TouchableOpacity style={styles.addPlaygroundButton} onPress={goToAddPlayground}>
+                <Text style={styles.addPlaygroundEmoji}>➕</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.addPlaygroundTitle}>Add a playground</Text>
+                  <Text style={styles.addPlaygroundHint}>
+                    Use your current location to drop a pin.
+                  </Text>
+                </View>
+              </TouchableOpacity>
             ) : null
           }
           renderItem={({ item }) => (
@@ -202,6 +217,21 @@ const styles = StyleSheet.create({
   noLocationText: { fontSize: FONT_SIZE.md, color: COLORS.textSecondary, textAlign: 'center' },
   emptyText: { fontSize: FONT_SIZE.md, color: COLORS.textSecondary, marginBottom: SPACING.xs },
   emptyHint: { fontSize: FONT_SIZE.sm, color: COLORS.textHint },
+  addPlaygroundButton: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginTop: SPACING.md,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: COLORS.primary,
+  },
+  addPlaygroundEmoji: { fontSize: 24 },
+  addPlaygroundTitle: { fontSize: FONT_SIZE.md, fontWeight: '700', color: COLORS.primary },
+  addPlaygroundHint: { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary, marginTop: 2 },
 
   // Active check-in state
   activeCard: {

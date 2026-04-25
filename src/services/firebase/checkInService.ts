@@ -107,17 +107,22 @@ export async function getNearbyPlaygrounds(lat: number, lng: number): Promise<Pl
 
 // ─── Create a user-defined playground ────────────────────────────────────────
 
-export async function createPlayground(
-  name: string,
-  lat: number,
-  lng: number,
-  createdBy: string
-): Promise<string> {
+interface CreatePlaygroundParams {
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  googlePlaceId: string | null;
+  createdBy: string;
+}
+
+export async function createPlayground(params: CreatePlaygroundParams): Promise<string> {
+  const { name, address, lat, lng, googlePlaceId, createdBy } = params;
   const ref = await addDoc(collection(db, 'playgrounds'), {
     name,
-    address: `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+    address: address || `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
     location: new GeoPoint(lat, lng),
-    googlePlaceId: null,
+    googlePlaceId,
     createdBy,
     checkInCount: 0,
     totalVisits: 0,
