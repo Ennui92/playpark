@@ -1,71 +1,63 @@
 {
   "expo": {
-    "name": "PlayPark",
-    "slug": "playpark",
-    "version": "1.0.0",
+    "name": "Outside",
+    "slug": "outside",
+    "version": "0.1.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "scheme": "outside",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#4CAF50"
+      "backgroundColor": "#FFFBF2"
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.yourcompany.playpark",
+      "bundleIdentifier": "com.yourcompany.outside",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "PlayPark uses your location to show nearby playgrounds and let friends see which park you're at.",
-        "NSLocationAlwaysUsageDescription": "PlayPark uses your location in the background to automatically check you in when you arrive at a playground.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "PlayPark uses your location to show nearby playgrounds and optionally auto-detect arrivals.",
-        "NSCameraUsageDescription": "PlayPark uses your camera to scan QR codes when adding parent friends.",
-        "NSPhotoLibraryUsageDescription": "PlayPark accesses your photos so you can add a profile picture for you and your children."
-      },
-      "googleServicesFile": "./GoogleService-Info.plist"
+        "NSCameraUsageDescription": "Outside uses your camera to scan friend QR codes."
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#4CAF50"
+        "backgroundColor": "#FFFBF2"
       },
-      "package": "com.yourcompany.playpark",
-      "googleServicesFile": "./google-services.json",
+      "package": "com.yourcompany.outside",
       "permissions": [
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
         "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE"
+        "VIBRATE",
+        "android.permission.CAMERA"
       ]
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
+    "web": {},
     "plugins": [
-      "expo-router",
       [
         "expo-notifications",
         {
-          "icon": "./assets/notification-icon.png",
-          "color": "#4CAF50",
+          "color": "#FF7A59",
           "androidMode": "default"
         }
       ],
       [
-        "expo-location",
+        "expo-camera",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow PlayPark to use your location to find nearby playgrounds."
+          "cameraPermission": "Outside uses your camera to scan friend QR codes."
         }
-      ],
-      "expo-apple-authentication"
+      ]
     ],
-    "scheme": "playpark",
     "extra": {
+      "supabaseUrl": "https://vqwzyrydhsourpkjdmot.supabase.co",
+      "supabaseAnonKey": "sb_publishable_YISeb0avhXXh6XiGs6abcA_nKt9pVTm",
+      "googleMapsApiKey": "AIzaSyBDZXaECwWf8pfWlF-6ptRKKGdjUH7ibZk",
       "eas": {
-        "projectId": "YOUR_EAS_PROJECT_ID"
+        "projectId": "23abb106-0764-4489-aa6e-fd065ed1adf3"
       }
+    },
+    "owner": "albertcamus",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/23abb106-0764-4489-aa6e-fd065ed1adf3"
     }
   }
 }

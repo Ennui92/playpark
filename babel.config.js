@@ -2,17 +2,9 @@ module.exports = function (api) {
   api.cache(true);
   return {
     presets: ['babel-preset-expo'],
-    plugins: [
-      [
-        'module-resolver',
-        {
-          root: ['./src'],
-          alias: {
-            '@': './src',
-          },
-        },
-      ],
-      'react-native-reanimated/plugin',
-    ],
+    // No module-resolver needed: babel-preset-expo (SDK 50+) respects
+    // tsconfig.json `paths`, which covers our @/* alias.
+    // Reanimated 4 moved the plugin to react-native-worklets.
+    plugins: ['react-native-worklets/plugin'],
   };
 };

@@ -31,3 +31,11 @@ src/config/firebase.ts
 .env
 .env.local
 .env.*.local
+
+# Claude Code — personal settings & hook logs
+.claude/settings.local.json
+.claude/eas-update.log
+
+# RN crash dump filenames that occasionally land at repo root
+com.facebook.react.devsupport.*
+java.util.concurrent.ThreadPoolExecutor*
