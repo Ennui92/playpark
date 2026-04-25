@@ -31,3 +31,6 @@ src/config/firebase.ts
 .env
 .env.local
 .env.*.local
+
+# Claude internal notes (local only, not for the remote)
+CLAUDE.md
