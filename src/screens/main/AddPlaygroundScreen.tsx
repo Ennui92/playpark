@@ -90,10 +90,25 @@ export function AddPlaygroundScreen() {
         googlePlaceId: place?.googlePlaceId ?? null,
         createdBy: appUser.uid,
       });
-      navigation.replace('CheckInConfirm', {
-        playgroundId,
-        playgroundName: name.trim(),
-      });
+      Alert.alert(
+        'Playground saved',
+        'Want to fine-tune the pin location now?',
+        [
+          {
+            text: 'Edit pin',
+            onPress: () => navigation.replace('EditPlayground', { playgroundId }),
+          },
+          {
+            text: 'Check in',
+            style: 'default',
+            onPress: () =>
+              navigation.replace('CheckInConfirm', {
+                playgroundId,
+                playgroundName: name.trim(),
+              }),
+          },
+        ]
+      );
     } catch (err) {
       console.warn('createPlayground failed', err);
       Alert.alert('Oops', 'Could not save the playground. Try again.');

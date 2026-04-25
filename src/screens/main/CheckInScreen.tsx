@@ -60,6 +60,10 @@ export function CheckInScreen() {
     navigation.navigate('AddPlayground');
   }
 
+  function goToEditPlayground(playgroundId: string) {
+    navigation.navigate('EditPlayground', { playgroundId });
+  }
+
   // ── If user is already checked in ─────────────────────────────────────────
 
   if (activeCheckIn) {
@@ -153,7 +157,11 @@ export function CheckInScreen() {
             ) : null
           }
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.playgroundCard} onPress={() => goToConfirm(item)}>
+            <TouchableOpacity
+              style={styles.playgroundCard}
+              onPress={() => goToConfirm(item)}
+              onLongPress={() => goToEditPlayground(item.id)}
+            >
               <View style={styles.playgroundInfo}>
                 <Text style={styles.playgroundEmoji}>🛝</Text>
                 <View style={{ flex: 1 }}>
@@ -169,6 +177,13 @@ export function CheckInScreen() {
                     </Text>
                   </View>
                 )}
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={() => goToEditPlayground(item.id)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.editButtonText}>✏︎</Text>
+                </TouchableOpacity>
               </View>
               <Text style={styles.chevron}>›</Text>
             </TouchableOpacity>
@@ -212,6 +227,12 @@ const styles = StyleSheet.create({
   },
   activeBadgeText: { fontSize: FONT_SIZE.xs, color: COLORS.primaryDark, fontWeight: '600' },
   chevron: { fontSize: 22, color: COLORS.textHint, marginLeft: SPACING.sm },
+  editButton: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    marginLeft: SPACING.xs,
+  },
+  editButtonText: { fontSize: FONT_SIZE.md, color: COLORS.primary },
   noLocationEmoji: { fontSize: 48, marginBottom: SPACING.md },
   noLocationTitle: { fontSize: FONT_SIZE.lg, fontWeight: '700', color: COLORS.textPrimary, marginBottom: SPACING.sm },
   noLocationText: { fontSize: FONT_SIZE.md, color: COLORS.textSecondary, textAlign: 'center' },

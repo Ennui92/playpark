@@ -207,6 +207,7 @@ export type CheckInStackParamList = {
   CheckIn: undefined;
   PlaygroundSearch: undefined;
   AddPlayground: undefined;
+  EditPlayground: { playgroundId: string };
   CheckInConfirm: { playgroundId: string; playgroundName: string };
 };
 

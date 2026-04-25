@@ -78,8 +78,14 @@ service cloud.firestore {
       allow create: if isSignedIn() &&
         request.resource.data.createdBy == request.auth.uid;
 
-      // Only Cloud Function updates counts; users cannot write directly
-      allow update: if false;
+      // The creator can correct name / address / location / googlePlaceId.
+      // checkInCount, totalVisits, createdBy must NOT change here — those
+      // are managed by Cloud Functions only.
+      allow update: if isSignedIn()
+        && resource.data.createdBy == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['name', 'address', 'location', 'googlePlaceId']);
+
       allow delete: if false;
     }
 

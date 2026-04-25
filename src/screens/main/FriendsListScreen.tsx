@@ -7,7 +7,10 @@ import {
   SafeAreaView,
   TouchableOpacity,
   Image,
+  ToastAndroid,
+  Platform,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { FriendsStackParamList, Friendship } from '@/types';
@@ -22,6 +25,7 @@ export function FriendsListScreen() {
   const { appUser } = useAuth();
   const [friends, setFriends] = useState<Friendship[]>([]);
   const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!appUser) return;
@@ -30,6 +34,16 @@ export function FriendsListScreen() {
       setLoading(false);
     });
   }, [appUser]);
+
+  async function copyMyName() {
+    if (!appUser) return;
+    await Clipboard.setStringAsync(appUser.displayName);
+    if (Platform.OS === 'android') {
+      ToastAndroid.show('Name copied', ToastAndroid.SHORT);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -47,6 +61,23 @@ export function FriendsListScreen() {
         data={friends}
         keyExtractor={(f) => f.friendUserId}
         contentContainerStyle={styles.list}
+        ListHeaderComponent={
+          appUser ? (
+            <TouchableOpacity
+              style={styles.myNameCard}
+              onPress={copyMyName}
+              activeOpacity={0.7}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.myNameLabel}>Your family name</Text>
+                <Text style={styles.myNameValue}>{appUser.displayName}</Text>
+              </View>
+              <View style={styles.copyPill}>
+                <Text style={styles.copyPillText}>{copied ? 'Copied!' : 'Copy'}</Text>
+              </View>
+            </TouchableOpacity>
+          ) : null
+        }
         ListEmptyComponent={
           !loading ? (
             <View style={styles.empty}>
@@ -103,6 +134,35 @@ const styles = StyleSheet.create({
   },
   addButtonText: { color: '#fff', fontWeight: '700', fontSize: FONT_SIZE.md },
   list: { padding: SPACING.md, gap: SPACING.sm },
+  myNameCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primaryLight,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    ...SHADOW.sm,
+  },
+  myNameLabel: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.primaryDark,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  myNameValue: {
+    fontSize: FONT_SIZE.lg,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+    marginTop: 2,
+  },
+  copyPill: {
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+  },
+  copyPillText: { color: '#fff', fontWeight: '700', fontSize: FONT_SIZE.sm },
   friendCard: {
     flexDirection: 'row',
     alignItems: 'center',

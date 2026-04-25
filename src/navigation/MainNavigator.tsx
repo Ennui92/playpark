@@ -2,6 +2,7 @@ import React from 'react';
 import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 
 import {
   MainTabParamList,
@@ -17,6 +18,7 @@ import { FeedScreen } from '@/screens/main/FeedScreen';
 import { CheckInScreen } from '@/screens/main/CheckInScreen';
 import { CheckInConfirmScreen } from '@/screens/main/CheckInConfirmScreen';
 import { AddPlaygroundScreen } from '@/screens/main/AddPlaygroundScreen';
+import { EditPlaygroundScreen } from '@/screens/main/EditPlaygroundScreen';
 import { FriendsListScreen } from '@/screens/main/FriendsListScreen';
 import { AddFriendScreen } from '@/screens/main/AddFriendScreen';
 import { ProfileScreen } from '@/screens/main/ProfileScreen';
@@ -42,6 +44,7 @@ function CheckInNavigator() {
     <CheckInStack.Navigator screenOptions={{ headerShown: false }}>
       <CheckInStack.Screen name="CheckIn" component={CheckInScreen} />
       <CheckInStack.Screen name="AddPlayground" component={AddPlaygroundScreen} />
+      <CheckInStack.Screen name="EditPlayground" component={EditPlaygroundScreen} />
       <CheckInStack.Screen name="CheckInConfirm" component={CheckInConfirmScreen} />
     </CheckInStack.Navigator>
   );
@@ -91,12 +94,21 @@ export function MainNavigator() {
 
 // ─── Custom tab bar with a prominent centre Check-In button ──────────────────
 
-function CustomTabBar({ state, descriptors, navigation }: any) {
-  const tabs = [
-    { name: 'FeedTab', icon: '🏠', label: 'Feed' },
-    { name: 'CheckInTab', icon: '📍', label: 'Check In', isCenter: true },
-    { name: 'FriendsTab', icon: '👥', label: 'Friends' },
-    { name: 'ProfileTab', icon: '👤', label: 'Profile' },
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+interface TabSpec {
+  name: string;
+  icon: IoniconName;
+  label: string;
+  isCenter?: boolean;
+}
+
+function CustomTabBar({ state, navigation }: any) {
+  const tabs: TabSpec[] = [
+    { name: 'FeedTab', icon: 'home-outline', label: 'Feed' },
+    { name: 'CheckInTab', icon: 'location', label: 'Check In', isCenter: true },
+    { name: 'FriendsTab', icon: 'people-outline', label: 'Friends' },
+    { name: 'ProfileTab', icon: 'person-outline', label: 'Profile' },
   ];
 
   return (
@@ -115,7 +127,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
           return (
             <TouchableOpacity key={tab.name} onPress={onPress} style={styles.centerButton}>
               <View style={styles.centerButtonInner}>
-                <Text style={styles.centerButtonIcon}>{tab.icon}</Text>
+                <Ionicons name={tab.icon} size={28} color="#fff" />
               </View>
             </TouchableOpacity>
           );
@@ -123,7 +135,11 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
 
         return (
           <TouchableOpacity key={tab.name} onPress={onPress} style={styles.tabItem}>
-            <Text style={[styles.tabIcon, isFocused && styles.tabIconActive]}>{tab.icon}</Text>
+            <Ionicons
+              name={tab.icon}
+              size={22}
+              color={isFocused ? COLORS.primary : COLORS.textHint}
+            />
             <Text style={[styles.tabLabel, isFocused && styles.tabLabelActive]}>{tab.label}</Text>
           </TouchableOpacity>
         );
@@ -145,13 +161,6 @@ const styles = StyleSheet.create({
   tabItem: {
     flex: 1,
     alignItems: 'center',
-  },
-  tabIcon: {
-    fontSize: 22,
-    opacity: 0.4,
-  },
-  tabIconActive: {
-    opacity: 1,
   },
   tabLabel: {
     fontSize: 10,
@@ -179,8 +188,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 8,
-  },
-  centerButtonIcon: {
-    fontSize: 26,
   },
 });

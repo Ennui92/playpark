@@ -129,3 +129,32 @@ export async function createPlayground(params: CreatePlaygroundParams): Promise<
   });
   return ref.id;
 }
+
+// ─── Update a playground (creator only — enforced by Firestore rules) ────────
+
+interface UpdatePlaygroundParams {
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  googlePlaceId: string | null;
+}
+
+export async function updatePlayground(
+  playgroundId: string,
+  params: UpdatePlaygroundParams
+): Promise<void> {
+  const { name, address, lat, lng, googlePlaceId } = params;
+  await updateDoc(doc(db, 'playgrounds', playgroundId), {
+    name,
+    address: address || `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+    location: new GeoPoint(lat, lng),
+    googlePlaceId,
+  });
+}
+
+export async function getPlayground(playgroundId: string): Promise<Playground | null> {
+  const snap = await getDoc(doc(db, 'playgrounds', playgroundId));
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() } as Playground;
+}
