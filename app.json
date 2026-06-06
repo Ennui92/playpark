@@ -12,7 +12,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.yourcompany.outside",
+      "bundleIdentifier": "dev.ermis.outside",
       "infoPlist": {
         "NSCameraUsageDescription": "Outside uses your camera to scan friend QR codes."
       }
@@ -21,7 +21,7 @@
       "adaptiveIcon": {
         "backgroundColor": "#FFFBF2"
       },
-      "package": "com.yourcompany.outside",
+      "package": "dev.ermis.outside",
       "permissions": [
         "CAMERA",
         "VIBRATE",
