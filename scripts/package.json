@@ -1,0 +1,15 @@
+{
+  "name": "playpark-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Dev/ops scripts for PlayPark (data seeding, etc.)",
+  "scripts": {
+    "fetch:berlin": "node fetch-berlin-playgrounds.mjs",
+    "seed": "node seed-playgrounds.mjs",
+    "seed:emulator": "FIRESTORE_EMULATOR_HOST=localhost:8080 node seed-playgrounds.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}

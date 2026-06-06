@@ -16,6 +16,7 @@ import { COLORS } from '@/utils/theme';
 import { FeedScreen } from '@/screens/main/FeedScreen';
 import { CheckInScreen } from '@/screens/main/CheckInScreen';
 import { CheckInConfirmScreen } from '@/screens/main/CheckInConfirmScreen';
+import { AddPlaygroundScreen } from '@/screens/main/AddPlaygroundScreen';
 import { FriendsListScreen } from '@/screens/main/FriendsListScreen';
 import { AddFriendScreen } from '@/screens/main/AddFriendScreen';
 import { ProfileScreen } from '@/screens/main/ProfileScreen';
@@ -40,6 +41,7 @@ function CheckInNavigator() {
   return (
     <CheckInStack.Navigator screenOptions={{ headerShown: false }}>
       <CheckInStack.Screen name="CheckIn" component={CheckInScreen} />
+      <CheckInStack.Screen name="AddPlayground" component={AddPlaygroundScreen} />
       <CheckInStack.Screen name="CheckInConfirm" component={CheckInConfirmScreen} />
     </CheckInStack.Navigator>
   );

@@ -56,6 +56,13 @@ export function CheckInScreen() {
     });
   }
 
+  function goToAddPlayground() {
+    navigation.navigate('AddPlayground', {
+      lat: location?.coords.latitude,
+      lng: location?.coords.longitude,
+    });
+  }
+
   // ── If user is already checked in ─────────────────────────────────────────
 
   if (activeCheckIn) {
@@ -100,8 +107,15 @@ export function CheckInScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Check in</Text>
-        <Text style={styles.headerSubtitle}>Let friends know where you're heading</Text>
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerTitle}>Check in</Text>
+            <Text style={styles.headerSubtitle}>Let friends know where you're heading</Text>
+          </View>
+          <TouchableOpacity style={styles.addButton} onPress={goToAddPlayground}>
+            <Text style={styles.addButtonText}>＋ Add</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loadingLocation ? (
@@ -131,10 +145,18 @@ export function CheckInScreen() {
             !loadingPlaces ? (
               <View style={styles.centered}>
                 <Text style={styles.emptyText}>No playgrounds found nearby.</Text>
-                <Text style={styles.emptyHint}>
-                  You can add your local park after checking in.
-                </Text>
+                <Text style={styles.emptyHint}>Be the first to add your local park.</Text>
+                <TouchableOpacity style={styles.emptyAddButton} onPress={goToAddPlayground}>
+                  <Text style={styles.emptyAddButtonText}>＋ Add a playground</Text>
+                </TouchableOpacity>
               </View>
+            ) : null
+          }
+          ListFooterComponent={
+            playgrounds.length > 0 && !loadingPlaces ? (
+              <TouchableOpacity style={styles.footerAddButton} onPress={goToAddPlayground}>
+                <Text style={styles.footerAddButtonText}>＋ Don't see it? Add a playground</Text>
+              </TouchableOpacity>
             ) : null
           }
           renderItem={({ item }) => (
@@ -172,8 +194,30 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
+  headerRow: { flexDirection: 'row', alignItems: 'center' },
   headerTitle: { fontSize: FONT_SIZE.xl, fontWeight: '800', color: COLORS.textPrimary },
   headerSubtitle: { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary, marginTop: 2 },
+  addButton: {
+    backgroundColor: COLORS.primaryLight,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+  },
+  addButtonText: { color: COLORS.primaryDark, fontWeight: '700', fontSize: FONT_SIZE.sm },
+  emptyAddButton: {
+    marginTop: SPACING.md,
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+  },
+  emptyAddButtonText: { color: '#fff', fontWeight: '700', fontSize: FONT_SIZE.md },
+  footerAddButton: {
+    marginTop: SPACING.md,
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+  },
+  footerAddButtonText: { color: COLORS.primary, fontWeight: '600', fontSize: FONT_SIZE.md },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.xl },
   loadingText: { color: COLORS.textSecondary, marginTop: SPACING.sm },
   list: { padding: SPACING.md, gap: SPACING.sm },

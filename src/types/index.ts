@@ -206,6 +206,7 @@ export type FeedStackParamList = {
 export type CheckInStackParamList = {
   CheckIn: undefined;
   PlaygroundSearch: undefined;
+  AddPlayground: { lat?: number; lng?: number } | undefined;
   CheckInConfirm: { playgroundId: string; playgroundName: string };
 };
 

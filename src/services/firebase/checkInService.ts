@@ -111,11 +111,12 @@ export async function createPlayground(
   name: string,
   lat: number,
   lng: number,
-  createdBy: string
+  createdBy: string,
+  address?: string
 ): Promise<string> {
   const ref = await addDoc(collection(db, 'playgrounds'), {
     name,
-    address: `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+    address: address?.trim() || `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
     location: new GeoPoint(lat, lng),
     googlePlaceId: null,
     createdBy,
