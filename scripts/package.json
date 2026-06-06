@@ -1,0 +1,10 @@
+{
+  "name": "outside-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Dev/ops scripts for Outside (data fetching, etc.)",
+  "scripts": {
+    "fetch:berlin": "node fetch-berlin-playgrounds.mjs"
+  }
+}
