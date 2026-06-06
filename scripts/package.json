@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Dev/ops scripts for Outside (data fetching, etc.)",
   "scripts": {
-    "fetch:berlin": "node fetch-berlin-playgrounds.mjs"
+    "fetch:berlin": "node fetch-berlin-playgrounds.mjs",
+    "build:osm-migration": "node build-osm-migration.mjs"
   }
 }
