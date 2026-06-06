@@ -26,7 +26,12 @@
         "CAMERA",
         "VIBRATE",
         "android.permission.CAMERA"
-      ]
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBDZXaECwWf8pfWlF-6ptRKKGdjUH7ibZk"
+        }
+      }
     },
     "web": {},
     "plugins": [

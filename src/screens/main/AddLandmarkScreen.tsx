@@ -234,8 +234,8 @@ export function AddLandmarkScreen() {
               <MapPreview
                 lat={coords.lat}
                 lng={coords.lng}
-                height={160}
-                showOpenInMaps={false}
+                height={180}
+                showDirections={false}
                 label={name || undefined}
               />
             </View>

@@ -1,61 +1,70 @@
-import React, { useMemo } from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View, Linking } from "react-native";
-import { staticMapUrl } from "@/services/geocoding";
+import React from "react";
+import { Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 
 interface Props {
   lat: number;
   lng: number;
   height?: number;
-  // Tap behaviour: opens Google Maps centered on the *exact* coordinate
-  // (not a name search) so the pin always lands where the user expects.
-  showOpenInMaps?: boolean;
-  label?: string; // optional name to display in the maps app deep-link
+  // Show a small "Directions" affordance that fires the OS navigation
+  // intent. The tile itself stays in-app and is pan/zoomable; we only
+  // bounce out when the user explicitly wants directions.
+  showDirections?: boolean;
+  label?: string;
 }
 
-export function MapPreview({ lat, lng, height = 180, showOpenInMaps = true, label }: Props) {
-  const url = useMemo(
-    () => staticMapUrl({ lat, lng, width: 700, height: 360 }),
-    [lat, lng]
-  );
-
-  function openInMaps() {
-    // Center on the exact coordinate AND drop a pin. The `query=lat,lng`
-    // form makes Google Maps drop a pin on those coords (not search by
-    // name), which is what the user wants when they tap the preview.
-    const labelPart = label ? `(${encodeURIComponent(label)})` : "";
-    const target = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}${labelPart}`;
-    Linking.openURL(target).catch(() => {});
-  }
-
-  if (!url) {
-    return (
-      <TouchableOpacity style={styles.fallback} onPress={openInMaps}>
-        <Text style={styles.fallbackEmoji}>🗺️</Text>
-        <Text style={styles.fallbackText}>Open in Google Maps</Text>
-        <Text style={styles.fallbackSub}>
-          {lat.toFixed(4)}, {lng.toFixed(4)}
-        </Text>
-        <Text style={styles.fallbackHint}>
-          Enable Maps Static API in Google Cloud Console to see a preview here
-        </Text>
-      </TouchableOpacity>
-    );
+export function MapPreview({ lat, lng, height = 200, showDirections = true, label }: Props) {
+  function openDirections() {
+    // Navigation intent — proper deep-link that opens Google/Apple Maps
+    // in directions mode. Falls back to the universal web URL if the
+    // native scheme isn't installed; both land the user at the same coord.
+    const url = Platform.select({
+      ios: `http://maps.apple.com/?daddr=${lat},${lng}&dirflg=w`,
+      android: `google.navigation:q=${lat},${lng}&mode=w`,
+      default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking`,
+    })!;
+    Linking.openURL(url).catch(() => {
+      Linking.openURL(
+        `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking`
+      ).catch(() => {});
+    });
   }
 
   return (
-    <TouchableOpacity
-      style={[styles.wrap, { height }]}
-      onPress={showOpenInMaps ? openInMaps : undefined}
-      activeOpacity={showOpenInMaps ? 0.9 : 1}
-    >
-      <Image source={{ uri: url }} style={styles.img} resizeMode="cover" />
-      {showOpenInMaps && (
-        <View style={styles.overlay}>
-          <Text style={styles.overlayText}>Open in Maps ›</Text>
-        </View>
+    <View style={[styles.wrap, { height }]}>
+      <MapView
+        provider={PROVIDER_GOOGLE}
+        style={StyleSheet.absoluteFill}
+        initialRegion={{
+          latitude: lat,
+          longitude: lng,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
+        }}
+        // Native gestures stay enabled — pan/zoom feel right at home.
+        showsCompass={false}
+        showsMyLocationButton={false}
+        toolbarEnabled={false}
+      >
+        <Marker
+          coordinate={{ latitude: lat, longitude: lng }}
+          title={label}
+          // Coral pin to match the app palette.
+          pinColor={COLORS.accent}
+        />
+      </MapView>
+
+      {showDirections && (
+        <TouchableOpacity
+          style={styles.directionsBtn}
+          onPress={openDirections}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.directionsText}>↗ Directions</Text>
+        </TouchableOpacity>
       )}
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -66,31 +75,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceAlt,
     ...SHADOW.sm,
   },
-  img: { width: "100%", height: "100%", backgroundColor: COLORS.surfaceAlt },
-  overlay: {
+  directionsBtn: {
     position: "absolute",
     bottom: SPACING.sm,
     right: SPACING.sm,
-    backgroundColor: "rgba(0,0,0,0.55)",
+    backgroundColor: "rgba(0,0,0,0.72)",
     borderRadius: RADIUS.full,
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
+    paddingVertical: SPACING.xs + 2,
   },
-  overlayText: { color: "#fff", fontWeight: "700", fontSize: FONT_SIZE.sm },
-  fallback: {
-    alignItems: "center",
-    padding: SPACING.lg,
-    borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.surface,
-    ...SHADOW.sm,
-  },
-  fallbackEmoji: { fontSize: 32 },
-  fallbackText: { fontWeight: "700", color: COLORS.accent, marginTop: SPACING.xs },
-  fallbackSub: { color: COLORS.textTertiary, fontSize: FONT_SIZE.xs, marginTop: 2 },
-  fallbackHint: {
-    color: COLORS.textTertiary,
-    fontSize: FONT_SIZE.xs,
-    marginTop: SPACING.sm,
-    textAlign: "center",
-  },
+  directionsText: { color: "#fff", fontWeight: "700", fontSize: FONT_SIZE.sm },
 });
