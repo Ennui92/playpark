@@ -16,6 +16,9 @@ jobs:
   build:
     name: EAS Android preview build
     runs-on: ubuntu-latest
+    # Required so `gh release create` can write a Release to this repo.
+    permissions:
+      contents: write
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
@@ -56,12 +59,37 @@ jobs:
           echo "artifact_url=$ARTIFACT_URL" >> "$GITHUB_OUTPUT"
           echo "build_page=$BUILD_PAGE"     >> "$GITHUB_OUTPUT"
 
-      - name: Publish download link to summary
+      - name: Download APK and attach to a GitHub Release
+        # Bookmark https://github.com/Ennui92/playpark/releases/latest on
+        # your phone. /latest auto-redirects to the most recent release,
+        # so the bookmark never goes stale. GitHub Releases use different
+        # CDN paths than EAS, which sidesteps the Chrome-Android 99% hang.
+        if: steps.eas.outputs.artifact_url != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          curl -L --fail -o outside.apk "${{ steps.eas.outputs.artifact_url }}"
+          TAG="build-${{ github.run_number }}"
+          COMMIT_MSG=$(git log -1 --format=%s)
+          gh release create "$TAG" outside.apk \
+            --title "APK build #${{ github.run_number }}" \
+            --notes "$COMMIT_MSG"$'\n\n'"EAS build page: ${{ steps.eas.outputs.build_page }}" \
+            --target "${{ github.sha }}"
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/$TAG"
+          echo "release_url=$RELEASE_URL" >> "$GITHUB_OUTPUT"
+        id: release
+
+      - name: Publish download links to summary
         run: |
           {
             echo "## ✅ APK ready"
             echo ""
-            echo "**Download (tap on phone):** ${{ steps.eas.outputs.artifact_url }}"
+            echo "**Best (bookmarkable):** https://github.com/${{ github.repository }}/releases/latest"
+            echo ""
+            echo "**This build:** ${{ steps.release.outputs.release_url }}"
+            echo ""
+            echo "**EAS direct:** ${{ steps.eas.outputs.artifact_url }}"
             echo ""
             echo "**Build page:** ${{ steps.eas.outputs.build_page }}"
           } >> "$GITHUB_STEP_SUMMARY"
