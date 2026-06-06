@@ -17,8 +17,10 @@ import { Button } from "@/components/Button";
 import { createUserLandmark } from "@/services/landmarks";
 import { useSession } from "@/contexts/SessionContext";
 import { LandmarkCategory } from "@/types";
-import { reverseGeocode, GeocodeResult } from "@/services/geocoding";
+import { reverseGeocode, GeocodeResult, hasGoogleMapsKey, PlaceDetails } from "@/services/geocoding";
 import { BERLIN_ZIP_SET } from "@/data/berlinZips";
+import { PlaceAutocomplete } from "@/components/PlaceAutocomplete";
+import { MapPreview } from "@/components/MapPreview";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 
 const CATEGORIES: { key: LandmarkCategory; label: string; emoji: string }[] = [
@@ -143,6 +145,30 @@ export function AddLandmarkScreen() {
             A favorite cafe, a hidden playground — friends see it too.
           </Text>
 
+          {hasGoogleMapsKey() && (
+            <>
+              <Label>Search a place</Label>
+              <PlaceAutocomplete
+                placeholder="Café KuchenRausch, Kollwitzplatz…"
+                onPick={(place: PlaceDetails) => {
+                  // Pre-fill everything from the picked place. Name is
+                  // editable in the field below.
+                  if (!name.trim()) setName(place.name);
+                  setCoords({ lat: place.lat, lng: place.lng });
+                  setGeo({
+                    formatted: place.formatted,
+                    shortName: place.name,
+                    neighborhood: null,
+                    zip: null,
+                  });
+                }}
+              />
+              <Text style={styles.fineprint}>
+                Or pin your live location below.
+              </Text>
+            </>
+          )}
+
           <Label>Name</Label>
           <TextInput
             style={styles.input}
@@ -151,7 +177,6 @@ export function AddLandmarkScreen() {
             placeholder="e.g. Café KuchenRausch"
             placeholderTextColor={COLORS.textTertiary}
             maxLength={60}
-            autoFocus
           />
 
           <Label>Kind of place</Label>
@@ -203,6 +228,18 @@ export function AddLandmarkScreen() {
               Tip: stand at the spot for the best pin.
             </Text>
           </View>
+
+          {coords && (
+            <View style={{ marginTop: SPACING.md }}>
+              <MapPreview
+                lat={coords.lat}
+                lng={coords.lng}
+                height={160}
+                showOpenInMaps={false}
+                label={name || undefined}
+              />
+            </View>
+          )}
 
           <Button
             title="Add place"
@@ -272,6 +309,11 @@ const styles = StyleSheet.create({
   locFormatted: { color: COLORS.textSecondary, marginTop: 2 },
   locCoordsSub: { color: COLORS.textTertiary, fontSize: FONT_SIZE.xs, marginTop: SPACING.xs },
   locHint: { color: COLORS.textSecondary },
+  fineprint: {
+    color: COLORS.textTertiary,
+    fontSize: FONT_SIZE.xs,
+    marginTop: SPACING.xs,
+  },
   locFine: {
     color: COLORS.textTertiary,
     fontSize: FONT_SIZE.xs,

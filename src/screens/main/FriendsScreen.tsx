@@ -8,7 +8,10 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
+  Share,
+  Platform,
 } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -26,7 +29,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function FriendsScreen() {
   const nav = useNavigation<Nav>();
-  const { family } = useSession();
+  const { family, user } = useSession();
   const [friends, setFriends] = useState<Family[]>([]);
   const [username, setUsername] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -55,6 +58,28 @@ export function FriendsScreen() {
       Alert.alert("Couldn't add", e.message ?? "Try again.");
     } finally {
       setAdding(false);
+    }
+  }
+
+  async function copyUsername() {
+    if (!user) return;
+    await Clipboard.setStringAsync(`@${user.username}`);
+    Alert.alert("Copied", `@${user.username} is on your clipboard.`);
+  }
+
+  async function shareUsername() {
+    if (!user) return;
+    const msg =
+      `Add my family on Outside — search @${user.username} (or scan my QR in the app).` +
+      `\n\nOutside is the simple way to see where friend families are headed in Berlin.`;
+    try {
+      await Share.share(
+        Platform.OS === "ios"
+          ? { message: msg }
+          : { message: msg, title: "Add me on Outside" }
+      );
+    } catch {
+      // user cancelled — silent
     }
   }
 
@@ -91,6 +116,21 @@ export function FriendsScreen() {
         ListHeaderComponent={
           <View style={styles.header}>
             <Text style={styles.title}>Friend families</Text>
+
+            {!!user && (
+              <View style={styles.youCard}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.youLabel}>Your handle</Text>
+                  <Text style={styles.youHandle}>@{user.username}</Text>
+                </View>
+                <TouchableOpacity style={styles.iconBtn} onPress={copyUsername}>
+                  <Text style={styles.iconBtnText}>Copy</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.iconBtnPrimary} onPress={shareUsername}>
+                  <Text style={styles.iconBtnPrimaryText}>Share</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             <View style={styles.qrRow}>
               <Button
@@ -167,6 +207,39 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     marginBottom: SPACING.lg,
   },
+  youCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.sm,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    ...SHADOW.sm,
+  },
+  youLabel: {
+    color: COLORS.textSecondary,
+    fontSize: FONT_SIZE.xs,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    fontWeight: "700",
+  },
+  youHandle: { color: COLORS.accent, fontWeight: "800", fontSize: FONT_SIZE.lg, marginTop: 2 },
+  iconBtn: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  iconBtnText: { color: COLORS.textPrimary, fontWeight: "700" },
+  iconBtnPrimary: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.accent,
+  },
+  iconBtnPrimaryText: { color: "#fff", fontWeight: "700" },
   qrRow: { flexDirection: "row", gap: SPACING.sm },
   or: {
     color: COLORS.textTertiary,

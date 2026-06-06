@@ -26,7 +26,7 @@ import {
   getFavoriteLandmarkIds,
   unfavoriteLandmark,
 } from "@/services/favorites";
-import { staticMapUrl } from "@/services/geocoding";
+import { MapPreview } from "@/components/MapPreview";
 import { Landmark, BroadcastFeedItem, RootStackParamList } from "@/types";
 import { useSession } from "@/contexts/SessionContext";
 import { COLORS, FONT_SIZE, RADIUS, SPACING, SHADOW } from "@/utils/theme";
@@ -121,7 +121,9 @@ export function LandmarkScreen() {
           </TouchableOpacity>
         </View>
 
-        <MapPreview landmark={landmark} />
+        <View style={{ marginHorizontal: SPACING.md, marginVertical: SPACING.sm }}>
+          <MapPreview lat={landmark.lat} lng={landmark.lng} label={landmark.name} />
+        </View>
 
         <View style={styles.subRow}>
           <View style={{ flex: 1 }}>
@@ -163,76 +165,6 @@ export function LandmarkScreen() {
     </SafeAreaView>
   );
 }
-
-function MapPreview({ landmark }: { landmark: Landmark }) {
-  const url = useMemo(
-    () => staticMapUrl({ lat: landmark.lat, lng: landmark.lng, width: 700, height: 280 }),
-    [landmark.lat, landmark.lng]
-  );
-
-  function openInMaps() {
-    const query = encodeURIComponent(`${landmark.name}, Berlin`);
-    const maps =
-      `https://www.google.com/maps/search/?api=1` +
-      `&query=${query}&query_place_id=${landmark.lat},${landmark.lng}`;
-    Linking.openURL(maps).catch(() => {});
-  }
-
-  if (!url) {
-    return (
-      <TouchableOpacity style={mapStyles.fallback} onPress={openInMaps}>
-        <Text style={mapStyles.fallbackEmoji}>🗺️</Text>
-        <Text style={mapStyles.fallbackText}>Open in Google Maps</Text>
-        <Text style={mapStyles.fallbackSub}>
-          {landmark.lat.toFixed(4)}, {landmark.lng.toFixed(4)}
-        </Text>
-      </TouchableOpacity>
-    );
-  }
-
-  return (
-    <TouchableOpacity style={mapStyles.wrap} onPress={openInMaps} activeOpacity={0.9}>
-      <Image source={{ uri: url }} style={mapStyles.img} resizeMode="cover" />
-      <View style={mapStyles.overlay}>
-        <Text style={mapStyles.overlayText}>Open in Maps ›</Text>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-const mapStyles = StyleSheet.create({
-  wrap: {
-    marginHorizontal: SPACING.md,
-    marginTop: SPACING.sm,
-    marginBottom: SPACING.md,
-    borderRadius: RADIUS.lg,
-    overflow: "hidden",
-    ...SHADOW.sm,
-  },
-  img: { width: "100%", height: 180, backgroundColor: COLORS.surfaceAlt },
-  overlay: {
-    position: "absolute",
-    bottom: SPACING.sm,
-    right: SPACING.sm,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    borderRadius: RADIUS.full,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-  },
-  overlayText: { color: "#fff", fontWeight: "700", fontSize: FONT_SIZE.sm },
-  fallback: {
-    alignItems: "center",
-    marginHorizontal: SPACING.md,
-    marginBottom: SPACING.md,
-    padding: SPACING.lg,
-    borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.surface,
-    ...SHADOW.sm,
-  },
-  fallbackEmoji: { fontSize: 32 },
-  fallbackText: { fontWeight: "700", color: COLORS.accent, marginTop: SPACING.xs },
-  fallbackSub: { color: COLORS.textTertiary, fontSize: FONT_SIZE.xs, marginTop: 2 },
-});
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
