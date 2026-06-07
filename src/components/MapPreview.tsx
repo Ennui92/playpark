@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE, MapPressEvent, MarkerDragStartEndEvent } from "react-native-maps";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
@@ -62,6 +62,10 @@ export function MapPreview({
   }
 
   const editable = !!onCoordChange;
+  // Diagnostic state — surfaces on-screen so we can tell "still loading"
+  // from "loaded but blank" from "crashed" without needing logcat.
+  const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   return (
     <View style={[styles.wrap, { height }]}>
@@ -72,6 +76,13 @@ export function MapPreview({
         // was suppressing visible tile content even though the SDK was getting
         // 2xx auth responses. Re-introduce only after testing each rule.
         // customMapStyle={WARM_MAP_STYLE}
+        loadingEnabled={true}
+        loadingBackgroundColor="#fff7e8"
+        loadingIndicatorColor={COLORS.accent}
+        onMapReady={() => setMapReady(true)}
+        // Fires on Android when first tiles paint — diagnostic signal for
+        // distinguishing "init OK" from "init AND tiles rendered".
+        onMapLoaded={() => setMapError("tiles painted")}
         initialRegion={{
           latitude: lat,
           longitude: lng,
@@ -97,6 +108,13 @@ export function MapPreview({
           <Text style={styles.editHintText}>Drag the pin or tap to move it</Text>
         </View>
       )}
+
+      {/* DIAGNOSTIC BADGE — remove once map issue is fixed. */}
+      <View style={styles.debugBadge}>
+        <Text style={styles.debugBadgeText}>
+          {mapReady ? "ready" : "init…"} · {mapError ?? "no-tiles"}
+        </Text>
+      </View>
 
       {showDirections && !editable && (
         <TouchableOpacity
@@ -140,4 +158,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   editHintText: { color: "#fff", fontWeight: "600", fontSize: FONT_SIZE.xs },
+  debugBadge: {
+    position: "absolute",
+    bottom: SPACING.sm,
+    left: SPACING.sm,
+    backgroundColor: "rgba(0,0,0,0.72)",
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+  },
+  debugBadgeText: { color: "#fff", fontSize: 10, fontWeight: "600" },
 });
