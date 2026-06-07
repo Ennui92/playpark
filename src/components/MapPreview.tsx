@@ -68,7 +68,10 @@ export function MapPreview({
       <MapView
         provider={PROVIDER_GOOGLE}
         style={StyleSheet.absoluteFill}
-        customMapStyle={WARM_MAP_STYLE}
+        // customMapStyle intentionally OFF — turning it on with WARM_MAP_STYLE
+        // was suppressing visible tile content even though the SDK was getting
+        // 2xx auth responses. Re-introduce only after testing each rule.
+        // customMapStyle={WARM_MAP_STYLE}
         initialRegion={{
           latitude: lat,
           longitude: lng,
