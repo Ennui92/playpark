@@ -19,7 +19,10 @@ import {
   subscribeToLandmark,
   unsubscribeFromLandmark,
   getSubscribedLandmarkIds,
+  updateUserLandmark,
+  deleteUserLandmark,
 } from "@/services/landmarks";
+import { Alert } from "react-native";
 import { getActiveBroadcastsForLandmark } from "@/services/broadcasts";
 import {
   favoriteLandmark,
@@ -46,6 +49,47 @@ export function LandmarkScreen() {
   const [subscribed, setSubscribed] = useState(false);
   const [favorite, setFavorite] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Pin-edit mode flips the MapPreview into draggable mode. Only the
+  // creator family can use it; RLS will reject from anyone else anyway.
+  const [editingPin, setEditingPin] = useState(false);
+  const isCreator =
+    !!family && !!landmark?.created_by_family_id && landmark.created_by_family_id === family.id;
+
+  async function savePinMove(lat: number, lng: number) {
+    if (!landmark) return;
+    // Optimistic — the marker already moved on-screen.
+    setLandmark({ ...landmark, lat, lng });
+    try {
+      await updateUserLandmark(landmark.id, { lat, lng });
+    } catch (e: any) {
+      Alert.alert("Couldn't save pin", e.message ?? "Try again.");
+      // Reload to get the true server state if we lost the race.
+      load();
+    }
+  }
+
+  function confirmDelete() {
+    if (!landmark) return;
+    Alert.alert(
+      `Delete "${landmark.name}"?`,
+      "It'll disappear from everyone's list. Broadcasts you've made for it stay.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteUserLandmark(landmark.id);
+              nav.goBack();
+            } catch (e: any) {
+              Alert.alert("Couldn't delete", e.message ?? "Try again.");
+            }
+          },
+        },
+      ]
+    );
+  }
 
   const load = useCallback(async () => {
     if (!family) return;
@@ -122,8 +166,30 @@ export function LandmarkScreen() {
         </View>
 
         <View style={{ marginHorizontal: SPACING.md, marginVertical: SPACING.sm }}>
-          <MapPreview lat={landmark.lat} lng={landmark.lng} label={landmark.name} />
+          <MapPreview
+            lat={landmark.lat}
+            lng={landmark.lng}
+            label={landmark.name}
+            onCoordChange={editingPin ? savePinMove : undefined}
+            showDirections={!editingPin}
+          />
         </View>
+
+        {isCreator && (
+          <View style={styles.creatorRow}>
+            <TouchableOpacity
+              style={[styles.creatorBtn, editingPin && styles.creatorBtnActive]}
+              onPress={() => setEditingPin((v) => !v)}
+            >
+              <Text style={[styles.creatorBtnText, editingPin && styles.creatorBtnTextActive]}>
+                {editingPin ? "Done moving pin" : "✏️ Move pin"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.creatorBtnDanger} onPress={confirmDelete}>
+              <Text style={styles.creatorBtnDangerText}>🗑 Delete place</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={styles.subRow}>
           <View style={{ flex: 1 }}>
@@ -208,6 +274,33 @@ const styles = StyleSheet.create({
   section: { padding: SPACING.lg },
   sectionTitle: { fontWeight: "700", fontSize: FONT_SIZE.lg, marginBottom: SPACING.sm },
   empty: { color: COLORS.textSecondary },
+  creatorRow: {
+    flexDirection: "row",
+    gap: SPACING.sm,
+    marginHorizontal: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  creatorBtn: {
+    flex: 1,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+    alignItems: "center",
+  },
+  creatorBtnActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
+  creatorBtnText: { color: COLORS.textPrimary, fontWeight: "700" },
+  creatorBtnTextActive: { color: "#fff" },
+  creatorBtnDanger: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.danger,
+    alignItems: "center",
+  },
+  creatorBtnDangerText: { color: COLORS.danger, fontWeight: "700" },
   bcCard: {
     backgroundColor: COLORS.surface,
     padding: SPACING.md,

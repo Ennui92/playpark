@@ -74,3 +74,31 @@ export async function createUserLandmark(params: {
   if (error) throw error;
   return data as Landmark;
 }
+
+// Update a landmark you created. RLS limits this to rows where
+// created_by_family_id = your family.
+export async function updateUserLandmark(
+  id: string,
+  updates: Partial<{
+    name: string;
+    category: Landmark["category"];
+    emoji: string;
+    lat: number;
+    lng: number;
+  }>
+): Promise<Landmark> {
+  const { data, error } = await supabase
+    .from("landmarks")
+    .update(updates)
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as Landmark;
+}
+
+// Delete a landmark you created. RLS gates this to creator-only.
+export async function deleteUserLandmark(id: string): Promise<void> {
+  const { error } = await supabase.from("landmarks").delete().eq("id", id);
+  if (error) throw error;
+}

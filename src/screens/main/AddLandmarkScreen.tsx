@@ -234,10 +234,14 @@ export function AddLandmarkScreen() {
               <MapPreview
                 lat={coords.lat}
                 lng={coords.lng}
-                height={180}
+                height={220}
                 showDirections={false}
                 label={name || undefined}
+                onCoordChange={(lat, lng) => setCoords({ lat, lng })}
               />
+              <Text style={styles.locFine}>
+                Pin not quite right? Drag it or tap the map to move it.
+              </Text>
             </View>
           )}
 
