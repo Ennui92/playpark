@@ -17,7 +17,11 @@
  * Dedup: drops rows whose name OR coordinates collide with the
  * curated seed rows in migrations 0002 + 0005 (name-match OR <150m).
  *
- * Output: ../supabase/migrations/0007_seed_landmarks_osm.sql
+ * Output: ../supabase/migrations/0010_reseed_osm_corrected.sql
+ *
+ * History: superseded the original 0007 seed, whose coords landed on
+ * polygon vertices instead of centroids. 0008 cleared the bad seed
+ * before this re-seed applies.
  *
  * Run:
  *   cd scripts
@@ -158,15 +162,36 @@ function stitchSegments(segments) {
   return rings;
 }
 
-// Pick any representative coord for an OSM element. Handles nodes
-// (lat/lon), ways with `out geom` (geometry array), and relations
-// whose own coords are absent but whose members have geometry.
+// Mean of [{lat,lon}, ...] — used to find the centre of a polygon.
+// For a closed playground/park ring, the centroid lands inside the
+// play area; using geometry[0] (the previous behavior) landed on a
+// boundary vertex which could be 30-100m off.
+function centroidOf(points) {
+  if (!points || points.length === 0) return null;
+  let sumLat = 0;
+  let sumLon = 0;
+  for (const p of points) {
+    sumLat += p.lat;
+    sumLon += p.lon;
+  }
+  return [sumLat / points.length, sumLon / points.length];
+}
+
+// Pick a representative coord for an OSM element. Order of preference:
+//   1. Direct lat/lon (point feature — already a single location)
+//   2. `out geom`'s computed center if present
+//   3. Centroid of the way's geometry ring (polygon → its middle)
+//   4. Centroid of the first member's geometry ring (relation w/ outer way)
 function extractCoord(el) {
   if (el.lat != null && el.lon != null) return [el.lat, el.lon];
   if (el.center?.lat != null) return [el.center.lat, el.center.lon];
-  if (el.geometry?.[0]) return [el.geometry[0].lat, el.geometry[0].lon];
+  if (Array.isArray(el.geometry) && el.geometry.length > 0) {
+    return centroidOf(el.geometry);
+  }
   for (const m of el.members ?? []) {
-    if (m.geometry?.[0]) return [m.geometry[0].lat, m.geometry[0].lon];
+    if (Array.isArray(m.geometry) && m.geometry.length > 0) {
+      return centroidOf(m.geometry);
+    }
   }
   return null;
 }
@@ -381,6 +406,9 @@ async function main() {
 --   parks: ${stats.kept.park}
 -- ZIPs resolved from addr:postcode tag (${stats.zip_source.tag}) or
 -- Berlin postal_code boundary polygons (${stats.zip_source.polygon}).
+-- Coordinates are polygon CENTROIDS (mean of all geometry points) so
+-- the pin lands inside the play area rather than on a perimeter
+-- vertex like the previous 0007 seed did.
 -- Deduped against curated rows in 0002 + 0005 (name match OR <150m radius).
 -- Data © OpenStreetMap contributors, ODbL.
 
@@ -398,7 +426,7 @@ async function main() {
 
   const outPath = resolve(
     REPO_ROOT,
-    "supabase/migrations/0007_seed_landmarks_osm.sql"
+    "supabase/migrations/0010_reseed_osm_corrected.sql"
   );
   writeFileSync(outPath, header + body + "\n");
   console.log(`\nWrote ${outPath}`);

@@ -70,8 +70,8 @@ export function FriendsScreen() {
   async function shareUsername() {
     if (!user) return;
     const msg =
-      `Add my family on Outside — search @${user.username} (or scan my QR in the app).` +
-      `\n\nOutside is the simple way to see where friend families are headed in Berlin.`;
+      `Add me on Outside — search @${user.username} (or scan my QR in the app).` +
+      `\n\nOutside is the simple way to see where friends are headed in Berlin.`;
     try {
       await Share.share(
         Platform.OS === "ios"
@@ -115,7 +115,7 @@ export function FriendsScreen() {
         }
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={styles.title}>Friend families</Text>
+            <Text style={styles.title}>Friends</Text>
 
             {!!user && (
               <View style={styles.youCard}>
@@ -166,16 +166,16 @@ export function FriendsScreen() {
             </View>
 
             <Text style={[styles.sectionLabel, { marginTop: SPACING.xl }]}>
-              {friends.length} friend {friends.length === 1 ? "family" : "families"}
+              {friends.length} {friends.length === 1 ? "friend" : "friends"}
             </Text>
           </View>
         }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyEmoji}>👯</Text>
-            <Text style={styles.emptyTitle}>No friend families yet</Text>
+            <Text style={styles.emptyTitle}>No friends yet</Text>
             <Text style={styles.emptySub}>
-              Scan a QR at the playground, or add by username.
+              Scan a QR in person, or add by username.
             </Text>
           </View>
         }

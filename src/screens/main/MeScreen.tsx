@@ -17,7 +17,7 @@ export function MeScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.body}>
-        <Text style={styles.title}>{family?.name ?? "Your family"}</Text>
+        <Text style={styles.title}>{family?.name ?? "Your account"}</Text>
         <Text style={styles.sub}>
           {user?.display_name} · @{user?.username}
         </Text>

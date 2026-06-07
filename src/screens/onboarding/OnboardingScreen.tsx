@@ -29,8 +29,11 @@ export function OnboardingScreen() {
   const [saving, setSaving] = useState(false);
 
   const usernameValid = /^[a-z0-9_]{3,20}$/.test(username);
+  // Family/group name is optional now — solo users skip it and we fall
+  // back to their display name when we hit the DB. The schema still
+  // requires *something* in families.name; we just don't make them type
+  // it twice.
   const canSubmit =
-    familyName.trim().length >= 1 &&
     displayName.trim().length >= 1 &&
     usernameValid &&
     !!zip &&
@@ -40,10 +43,12 @@ export function OnboardingScreen() {
     if (!canSubmit) return;
     setSaving(true);
     try {
+      const display = displayName.trim();
+      const group = familyName.trim() || display;
       await completeSignup({
-        familyName: familyName.trim(),
+        familyName: group,
         zip,
-        displayName: displayName.trim(),
+        displayName: display,
         username: username.trim().toLowerCase(),
       });
       await refreshProfile();
@@ -66,26 +71,13 @@ export function OnboardingScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>Let's set up your family.</Text>
+          <Text style={styles.title}>Set up your account.</Text>
           <Text style={styles.sub}>
-            In Outside, your family is the unit — parents forget names, but they remember
-            "the Chens."
+            A few details so friends can find you and you can broadcast where you're
+            headed.
           </Text>
 
-          <Label>Family name</Label>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. The Chens"
-            placeholderTextColor={COLORS.textTertiary}
-            value={familyName}
-            onChangeText={setFamilyName}
-            maxLength={40}
-          />
-
-          <Label>Your neighborhood (PLZ)</Label>
-          <ZipPicker value={zip || null} onChange={setZip} />
-
-          <Label>Your name (for your family members)</Label>
+          <Label>Your name</Label>
           <TextInput
             style={styles.input}
             placeholder="e.g. Jess"
@@ -95,10 +87,13 @@ export function OnboardingScreen() {
             maxLength={40}
           />
 
+          <Label>Your neighborhood (PLZ)</Label>
+          <ZipPicker value={zip || null} onChange={setZip} />
+
           <Label>Pick a username</Label>
           <TextInput
             style={styles.input}
-            placeholder="chen_family"
+            placeholder="jess_b"
             placeholderTextColor={COLORS.textTertiary}
             value={username}
             onChangeText={(t) => setUsername(t.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
@@ -109,8 +104,22 @@ export function OnboardingScreen() {
             3–20 chars, lowercase letters/numbers/underscore. Friends can find you by this.
           </Text>
 
+          <Label>Group name (optional)</Label>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. The Chens — if you're broadcasting as a family"
+            placeholderTextColor={COLORS.textTertiary}
+            value={familyName}
+            onChangeText={setFamilyName}
+            maxLength={40}
+          />
+          <Text style={styles.hint}>
+            Leave blank if it's just you. Useful if multiple people share one account
+            (parents broadcasting together as "the Chens").
+          </Text>
+
           <Button
-            title="Create family"
+            title="Get started"
             onPress={submit}
             loading={saving}
             disabled={!canSubmit}

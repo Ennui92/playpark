@@ -3,6 +3,7 @@ import { ActivityIndicator, View } from "react-native";
 import { NavigationContainer, NavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Ionicons } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
 
 import { useSession } from "@/contexts/SessionContext";
@@ -25,17 +26,37 @@ import { QRScanScreen } from "@/screens/friends/QRScanScreen";
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tabs = createBottomTabNavigator<MainTabParamList>();
 
+// Each tab gets a filled icon when focused and an outline icon otherwise —
+// the standard iOS/Material pattern. Ionicons ships with the Expo SDK so
+// no extra font config is required for native builds.
+type TabIconName = "home" | "people" | "person";
+const TAB_ICONS: Record<keyof MainTabParamList, TabIconName> = {
+  Home: "home",
+  Friends: "people",
+  Me: "person",
+};
+
 function MainTabs() {
   return (
     <Tabs.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: COLORS.accent,
-        tabBarInactiveTintColor: COLORS.textTertiary,
-        tabBarStyle: {
-          backgroundColor: COLORS.surface,
-          borderTopColor: COLORS.border,
-        },
+      screenOptions={({ route }) => {
+        const base = TAB_ICONS[route.name as keyof MainTabParamList];
+        return {
+          headerShown: false,
+          tabBarActiveTintColor: COLORS.accent,
+          tabBarInactiveTintColor: COLORS.textTertiary,
+          tabBarStyle: {
+            backgroundColor: COLORS.surface,
+            borderTopColor: COLORS.border,
+          },
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons
+              name={focused ? base : (`${base}-outline` as const)}
+              size={size}
+              color={color}
+            />
+          ),
+        };
       }}
     >
       <Tabs.Screen name="Home" component={HomeScreen} />
