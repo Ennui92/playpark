@@ -2,7 +2,7 @@
   "expo": {
     "name": "Outside",
     "slug": "outside",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "scheme": "outside",
     "userInterfaceStyle": "light",
@@ -47,7 +47,8 @@
         {
           "cameraPermission": "Outside uses your camera to scan friend QR codes."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "supabaseUrl": "https://vqwzyrydhsourpkjdmot.supabase.co",
@@ -62,7 +63,9 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/23abb106-0764-4489-aa6e-fd065ed1adf3"
+      "url": "https://u.expo.dev/23abb106-0764-4489-aa6e-fd065ed1adf3",
+      "checkAutomatically": "ON_ERROR_RECOVERY",
+      "fallbackToCacheTimeout": 0
     }
   }
 }

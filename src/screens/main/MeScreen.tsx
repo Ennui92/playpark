@@ -3,10 +3,24 @@ import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from "rea
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import Constants from "expo-constants";
 import { Button } from "@/components/Button";
 import { useSession } from "@/contexts/SessionContext";
 import { RootStackParamList } from "@/types";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
+
+// Pulled at module-load time so we don't recompute on every render.
+// `version` comes from app.json. `buildNumber` and `gitSha` are
+// injected by the GitHub Actions workflow before EAS build (see
+// .github/workflows/build-android.yml), so they always reflect the
+// CI run that produced this specific APK.
+const extra = (Constants.expoConfig?.extra ?? {}) as {
+  buildNumber?: string;
+  gitSha?: string;
+};
+const APP_VERSION = Constants.expoConfig?.version ?? "—";
+const BUILD_NUMBER = extra.buildNumber ?? "local";
+const GIT_SHA = (extra.gitSha ?? "").slice(0, 7);
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -44,6 +58,11 @@ export function MeScreen() {
           }
           style={{ marginTop: SPACING.xl }}
         />
+
+        <Text style={styles.version}>
+          Outside v{APP_VERSION} · build {BUILD_NUMBER}
+          {GIT_SHA ? ` · ${GIT_SHA}` : ""}
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -83,4 +102,10 @@ const styles = StyleSheet.create({
   rowLabel: { color: COLORS.textSecondary },
   rowValue: { color: COLORS.textPrimary, fontWeight: "600" },
   rowValueLink: { color: COLORS.accent, fontWeight: "700" },
+  version: {
+    color: COLORS.textTertiary,
+    fontSize: FONT_SIZE.xs,
+    textAlign: "center",
+    marginTop: SPACING.xxl,
+  },
 });

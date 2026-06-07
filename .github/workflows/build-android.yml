@@ -38,6 +38,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Stamp build info into app.json
+        # Inject the CI run number + commit SHA into expo.extra so the
+        # app can display them in the Me screen. Lets the user verify
+        # which APK they're actually running (vs. one cached from an
+        # earlier install).
+        run: |
+          set -euo pipefail
+          node -e "
+            const fs = require('fs');
+            const p = './app.json';
+            const j = JSON.parse(fs.readFileSync(p, 'utf8'));
+            j.expo.extra = j.expo.extra || {};
+            j.expo.extra.buildNumber = '${{ github.run_number }}';
+            j.expo.extra.gitSha = '${{ github.sha }}';
+            fs.writeFileSync(p, JSON.stringify(j, null, 2) + '\n');
+          "
+          cat app.json | head -25
+
       - name: Run EAS build (Android preview, APK)
         id: eas
         env:
