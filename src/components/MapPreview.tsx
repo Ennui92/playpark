@@ -1,21 +1,7 @@
 import React, { useState } from "react";
 import { Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import MapView, { Marker, PROVIDER_GOOGLE, MapPressEvent, MarkerDragStartEndEvent } from "react-native-maps";
+import MapView, { Marker, PROVIDER_GOOGLE, MapPressEvent, MarkerDragStartEndEvent, MapType } from "react-native-maps";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
-
-// Warm cream + coral palette — matches the ermis.dev / Outside aesthetic.
-// Lifted from the Static Maps URL we used previously, translated to the
-// JSON style format that react-native-maps consumes.
-const WARM_MAP_STYLE = [
-  { featureType: "landscape", elementType: "geometry", stylers: [{ color: "#fff7e8" }] },
-  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#deebe3" }] },
-  { featureType: "poi.business", elementType: "labels", stylers: [{ visibility: "off" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
-  { featureType: "road.arterial", elementType: "geometry", stylers: [{ color: "#fff0e6" }] },
-  { featureType: "road", elementType: "labels", stylers: [{ saturation: -30 }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#c5d8e0" }] },
-  { featureType: "transit", elementType: "geometry", stylers: [{ visibility: "simplified" }] },
-];
 
 interface Props {
   lat: number;
@@ -37,6 +23,8 @@ export function MapPreview({
   label,
   onCoordChange,
 }: Props) {
+  const [mapType, setMapType] = useState<MapType>("standard");
+
   function openDirections() {
     const url = Platform.select({
       ios: `http://maps.apple.com/?daddr=${lat},${lng}&dirflg=w`,
@@ -50,7 +38,7 @@ export function MapPreview({
     });
   }
 
-  function onMarkerDragEnd(e: MarkerDragStartEndEvent) { // eslint-disable-line @typescript-eslint/no-unused-vars
+  function onMarkerDragEnd(e: MarkerDragStartEndEvent) {
     const c = e.nativeEvent.coordinate;
     onCoordChange?.(c.latitude, c.longitude);
   }
@@ -62,32 +50,27 @@ export function MapPreview({
   }
 
   const editable = !!onCoordChange;
-  // Diagnostic state — surfaces on-screen so we can tell "still loading"
-  // from "loaded but blank" from "crashed" without needing logcat.
-  const [mapReady, setMapReady] = useState(false);
-  const [mapError, setMapError] = useState<string | null>(null);
+  // "hybrid" = satellite imagery + road/place labels. Reads way better
+  // than pure satellite when you're trying to recognise where you are.
+  const showingSatellite = mapType !== "standard";
 
   return (
     <View style={[styles.wrap, { height }]}>
       <MapView
         provider={PROVIDER_GOOGLE}
         style={StyleSheet.absoluteFill}
-        // customMapStyle intentionally OFF — turning it on with WARM_MAP_STYLE
-        // was suppressing visible tile content even though the SDK was getting
-        // 2xx auth responses. Re-introduce only after testing each rule.
-        // customMapStyle={WARM_MAP_STYLE}
+        mapType={mapType}
         loadingEnabled={true}
         loadingBackgroundColor="#fff7e8"
         loadingIndicatorColor={COLORS.accent}
-        onMapReady={() => setMapReady(true)}
-        // Fires on Android when first tiles paint — diagnostic signal for
-        // distinguishing "init OK" from "init AND tiles rendered".
-        onMapLoaded={() => setMapError("tiles painted")}
         initialRegion={{
           latitude: lat,
           longitude: lng,
-          latitudeDelta: 0.005,
-          longitudeDelta: 0.005,
+          // Tighter zoom — the previous 0.005 deltas felt zoomed out for
+          // a single landmark. 0.002 puts the landmark and a couple
+          // blocks around it on screen.
+          latitudeDelta: 0.002,
+          longitudeDelta: 0.002,
         }}
         showsCompass={false}
         showsMyLocationButton={false}
@@ -103,18 +86,22 @@ export function MapPreview({
         />
       </MapView>
 
+      {/* Map / satellite toggle — top-right corner, always visible. */}
+      <TouchableOpacity
+        style={styles.mapTypeBtn}
+        onPress={() => setMapType(showingSatellite ? "standard" : "hybrid")}
+        activeOpacity={0.85}
+      >
+        <Text style={styles.mapTypeText}>
+          {showingSatellite ? "🗺 Map" : "🛰 Satellite"}
+        </Text>
+      </TouchableOpacity>
+
       {editable && (
         <View style={styles.editHint}>
           <Text style={styles.editHintText}>Drag the pin or tap to move it</Text>
         </View>
       )}
-
-      {/* DIAGNOSTIC BADGE — remove once map issue is fixed. */}
-      <View style={styles.debugBadge}>
-        <Text style={styles.debugBadgeText}>
-          {mapReady ? "ready" : "init…"} · {mapError ?? "no-tiles"}
-        </Text>
-      </View>
 
       {showDirections && !editable && (
         <TouchableOpacity
@@ -150,7 +137,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: SPACING.sm,
     left: SPACING.sm,
-    right: SPACING.sm,
+    right: 110, // leave room for the map-type toggle on the right
     backgroundColor: "rgba(0,0,0,0.55)",
     borderRadius: RADIUS.full,
     paddingHorizontal: SPACING.md,
@@ -158,14 +145,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   editHintText: { color: "#fff", fontWeight: "600", fontSize: FONT_SIZE.xs },
-  debugBadge: {
+  mapTypeBtn: {
     position: "absolute",
-    bottom: SPACING.sm,
-    left: SPACING.sm,
-    backgroundColor: "rgba(0,0,0,0.72)",
+    top: SPACING.sm,
+    right: SPACING.sm,
+    backgroundColor: "rgba(255,255,255,0.95)",
     borderRadius: RADIUS.full,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs + 2,
+    ...SHADOW.sm,
   },
-  debugBadgeText: { color: "#fff", fontSize: 10, fontWeight: "600" },
+  mapTypeText: { color: COLORS.textPrimary, fontWeight: "700", fontSize: FONT_SIZE.sm },
 });

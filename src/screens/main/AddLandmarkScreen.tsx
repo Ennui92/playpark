@@ -26,10 +26,13 @@ import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 const CATEGORIES: { key: LandmarkCategory; label: string; emoji: string }[] = [
   { key: "playground",       label: "Playground",        emoji: "🛝" },
   { key: "park",             label: "Park",              emoji: "🌳" },
+  { key: "square",           label: "Square",            emoji: "🟧" },
   { key: "cafe",             label: "Cafe",              emoji: "☕" },
   { key: "library",          label: "Library",           emoji: "📚" },
   { key: "indoor_play",      label: "Indoor play",       emoji: "🎪" },
   { key: "community_center", label: "Community center",  emoji: "🏛️" },
+  { key: "flea_market",      label: "Flea market",       emoji: "🛍️" },
+  { key: "event",            label: "Event venue",       emoji: "🎉" },
   { key: "other",            label: "Other",             emoji: "📍" },
 ];
 

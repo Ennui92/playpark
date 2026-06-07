@@ -8,6 +8,9 @@ export type LandmarkCategory =
   | "indoor_play"
   | "cafe"
   | "community_center"
+  | "square"             // public plazas (Berlin "Platz") — gathering spots
+  | "flea_market"        // Trödelmarkt, Flohmarkt, weekly markets
+  | "event"              // a place known for hosting events / event venue
   | "other";
 
 export interface Family {
