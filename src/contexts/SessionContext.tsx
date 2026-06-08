@@ -58,8 +58,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
     setUser(userRow as AppUser);
 
-    // Fire-and-forget push registration; safe to skip on failure.
-    registerForPushNotifications((userRow as AppUser).id).catch(() => {});
+    // Fire-and-forget push registration. Failures are logged but don't
+    // block sign-in — the MeScreen "Test push setup" button lets the
+    // user re-run and see the actual error if pushes aren't arriving.
+    registerForPushNotifications((userRow as AppUser).id).catch((e) => {
+      console.warn("[push] auto-register failed:", e?.message ?? e);
+    });
 
     const { data: familyRow } = await supabase
       .from("families")

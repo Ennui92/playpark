@@ -74,23 +74,16 @@ Deno.serve(async (req) => {
       .map((r: any) => r.family_id as string)
       .filter((id) => id !== cur.family_id);
 
-    // Fallback: if no RSVPs yet, fan out to friend families subscribed to
-    // this landmark (same set the initial broadcast push reached).
+    // Fallback: if no RSVPs yet, fan out to ALL friend families (same
+    // model as on_broadcast_created — no per-landmark opt-in required).
     if (audienceFamilyIds.length === 0) {
       const { data: friendRows } = await admin
         .from("friendships")
         .select("friend_family_id")
         .eq("family_id", cur.family_id);
-      const friendIds = (friendRows ?? []).map((r: any) => r.friend_family_id);
-      if (friendIds.length === 0) {
-        return json({ sent: 0, reason: "no audience" }, 200);
-      }
-      const { data: subRows } = await admin
-        .from("landmark_subs")
-        .select("family_id")
-        .eq("landmark_id", cur.landmark_id)
-        .in("family_id", friendIds);
-      audienceFamilyIds = (subRows ?? []).map((r: any) => r.family_id);
+      audienceFamilyIds = (friendRows ?? []).map(
+        (r: any) => r.friend_family_id
+      );
     }
     if (audienceFamilyIds.length === 0) {
       return json({ sent: 0, reason: "no audience" }, 200);

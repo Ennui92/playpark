@@ -68,7 +68,15 @@ export function BroadcastComposeScreen() {
         audienceCount: count,
       });
     } catch (e: any) {
-      Alert.alert("Couldn't post", e.message ?? "Try again.");
+      const msg = (e?.message ?? "").toLowerCase();
+      if (msg.includes("already broadcasting")) {
+        Alert.alert(
+          "You're already broadcasting",
+          "End or update your current broadcast before starting a new one. Open the landmark you're broadcasting at to manage it."
+        );
+      } else {
+        Alert.alert("Couldn't post", e?.message ?? "Try again.");
+      }
       setPosting(false);
     }
   }

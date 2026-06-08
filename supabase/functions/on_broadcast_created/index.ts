@@ -74,10 +74,12 @@ Deno.serve(async (req) => {
       return json({ error: "family or landmark not found" }, 404);
     }
 
-    // 2. Find friend families who are subscribed to this landmark.
-    //    Two step (no FK between friendships and landmark_subs, so no embed):
-    //    a) IDs of the broadcasting family's friends.
-    //    b) Intersect with families subscribed to this landmark.
+    // 2. Audience = the broadcasting family's friends. Previously we
+    //    intersected with landmark_subs (opt-in per-landmark notify),
+    //    but that meant zero notifications until someone explicitly
+    //    toggled "Notify me when friends head here" on each landmark.
+    //    Too friction-heavy: now every friend gets the push by default.
+    //    The landmark_subs opt-in can come back later as a mute model.
     const { data: friendRows, error: friendErr } = await admin
       .from("friendships")
       .select("friend_family_id")
@@ -85,23 +87,11 @@ Deno.serve(async (req) => {
 
     if (friendErr) return json({ error: friendErr.message }, 500);
 
-    const friendIds = (friendRows ?? []).map((r: any) => r.friend_family_id);
-    if (friendIds.length === 0) {
-      return json({ sent: 0, reason: "no friends" }, 200);
-    }
-
-    const { data: subRows, error: subsErr } = await admin
-      .from("landmark_subs")
-      .select("family_id")
-      .eq("landmark_id", broadcast.landmark_id)
-      .in("family_id", friendIds);
-
-    if (subsErr) return json({ error: subsErr.message }, 500);
-
-    const audienceFamilyIds = (subRows ?? []).map((r: any) => r.family_id);
-
+    const audienceFamilyIds = (friendRows ?? []).map(
+      (r: any) => r.friend_family_id
+    );
     if (audienceFamilyIds.length === 0) {
-      return json({ sent: 0, reason: "no audience" }, 200);
+      return json({ sent: 0, reason: "no friends" }, 200);
     }
 
     // 3. Pull every push token for users in those families.

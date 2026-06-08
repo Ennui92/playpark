@@ -7,6 +7,7 @@ import Constants from "expo-constants";
 import { Button } from "@/components/Button";
 import { useSession } from "@/contexts/SessionContext";
 import { deleteMyAccount } from "@/services/auth";
+import { registerForPushNotifications } from "@/services/push";
 import { RootStackParamList } from "@/types";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 
@@ -29,6 +30,19 @@ export function MeScreen() {
   const { family, user, signOut } = useSession();
   const nav = useNavigation<Nav>();
   const avatarUrl = family?.avatar_url ?? null;
+
+  async function testPushSetup() {
+    if (!user) return;
+    try {
+      const token = await registerForPushNotifications(user.id);
+      Alert.alert(
+        "Push registered ✓",
+        `Token saved.\n\n${token.slice(0, 40)}…\n\nYou should now receive notifications from friends.`
+      );
+    } catch (e: any) {
+      Alert.alert("Push setup failed", e?.message ?? "Unknown error");
+    }
+  }
 
   function confirmDeleteAccount() {
     Alert.alert(
@@ -96,6 +110,13 @@ export function MeScreen() {
         </View>
 
         <Button
+          title="🔔 Test push setup"
+          variant="secondary"
+          onPress={testPushSetup}
+          style={{ marginTop: SPACING.xl }}
+        />
+
+        <Button
           title="Sign out"
           variant="secondary"
           onPress={() =>
@@ -104,7 +125,7 @@ export function MeScreen() {
               { text: "Sign out", style: "destructive", onPress: signOut },
             ])
           }
-          style={{ marginTop: SPACING.xl }}
+          style={{ marginTop: SPACING.md }}
         />
 
         <TouchableOpacity onPress={confirmDeleteAccount} style={styles.dangerLink}>
