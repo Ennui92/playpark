@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Constants from "expo-constants";
+import * as Updates from "expo-updates";
 import { Button } from "@/components/Button";
 import { useSession } from "@/contexts/SessionContext";
 import { deleteMyAccount } from "@/services/auth";
@@ -41,6 +42,34 @@ export function MeScreen() {
       );
     } catch (e: any) {
       Alert.alert("Push setup failed", e?.message ?? "Unknown error");
+    }
+  }
+
+  // Manual OTA check — for when you don't want to wait for next launch
+  // to pick up a JS bundle update. The background-check happens on
+  // every app start automatically; this is just a "force now" shortcut.
+  async function checkForUpdates() {
+    if (!Updates.isEnabled) {
+      Alert.alert(
+        "Updates not enabled",
+        "This build doesn't have expo-updates wired (probably a dev client). OTA works on signed APKs from EAS."
+      );
+      return;
+    }
+    try {
+      const check = await Updates.checkForUpdateAsync();
+      if (!check.isAvailable) {
+        Alert.alert("Up to date", "You're already on the latest bundle.");
+        return;
+      }
+      await Updates.fetchUpdateAsync();
+      Alert.alert(
+        "Update ready",
+        "Restarting to apply…",
+        [{ text: "Restart", onPress: () => Updates.reloadAsync() }]
+      );
+    } catch (e: any) {
+      Alert.alert("Couldn't check", e?.message ?? "Try again later.");
     }
   }
 
@@ -110,10 +139,17 @@ export function MeScreen() {
         </View>
 
         <Button
+          title="⚡ Check for updates"
+          variant="secondary"
+          onPress={checkForUpdates}
+          style={{ marginTop: SPACING.xl }}
+        />
+
+        <Button
           title="🔔 Test push setup"
           variant="secondary"
           onPress={testPushSetup}
-          style={{ marginTop: SPACING.xl }}
+          style={{ marginTop: SPACING.md }}
         />
 
         <Button

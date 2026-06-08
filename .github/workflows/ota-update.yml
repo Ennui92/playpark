@@ -1,0 +1,88 @@
+name: Publish OTA update
+
+# Fires on every push to main. Publishes the new JS bundle to BOTH the
+# preview channel (used by sideloaded APKs from the preview workflow)
+# and the production channel (used by the Play Store AAB).
+#
+# Takes ~30 sec — much faster than a full APK rebuild. Installed apps
+# pick up the new bundle on their next app launch, no user action.
+#
+# Limits — these still require a fresh native build (APK / AAB):
+#   - Adding a new native module (e.g. expo-image-picker, react-native-maps)
+#   - Changing native config in app.json / eas.json (icons, plugins,
+#     permissions, scheme, googleMaps key, etc.)
+#   - Bumping expo.version (changes the runtime version under our
+#     `runtimeVersion: { policy: "appVersion" }` setting)
+#
+# JS-only changes (screen logic, services, types) — OTA covers them.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: eas update → preview + production
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Expo / EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Stamp build info into app.json
+        # Same trick the APK workflow uses — bake the CI run number +
+        # commit SHA into expo.extra so the Me-screen footer reflects
+        # which OTA bundle is currently running.
+        run: |
+          set -euo pipefail
+          node -e "
+            const fs = require('fs');
+            const p = './app.json';
+            const j = JSON.parse(fs.readFileSync(p, 'utf8'));
+            j.expo.extra = j.expo.extra || {};
+            j.expo.extra.buildNumber = 'ota-${{ github.run_number }}';
+            j.expo.extra.gitSha = '${{ github.sha }}';
+            fs.writeFileSync(p, JSON.stringify(j, null, 2) + '\n');
+          "
+
+      - name: Publish OTA to preview channel
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          MSG="$(git log -1 --format=%s)"
+          eas update --branch preview --message "$MSG" --non-interactive
+
+      - name: Publish OTA to production channel
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          MSG="$(git log -1 --format=%s)"
+          eas update --branch production --message "$MSG" --non-interactive
+
+      - name: Summary
+        run: |
+          {
+            echo "## ⚡ OTA update published"
+            echo ""
+            echo "Pushed to branches: **preview** + **production**"
+            echo ""
+            echo "Users on the latest APK (preview channel) and Play Store testers (production channel) will pick this up on their **next app launch** — no install required."
+            echo ""
+            echo "**Note:** native changes (new modules, plugin config, app.json icon/permissions) still need a fresh APK/AAB build. JS-only changes are covered by this OTA."
+          } >> "$GITHUB_STEP_SUMMARY"
