@@ -37,6 +37,7 @@ const TAB_ICONS: Record<keyof MainTabParamList, TabIconName> = {
 };
 
 function MainTabs() {
+  const { pendingRequestCount } = useSession();
   return (
     <Tabs.Navigator
       screenOptions={({ route }) => {
@@ -60,7 +61,16 @@ function MainTabs() {
       }}
     >
       <Tabs.Screen name="Home" component={HomeScreen} />
-      <Tabs.Screen name="Friends" component={FriendsScreen} />
+      <Tabs.Screen
+        name="Friends"
+        component={FriendsScreen}
+        options={{
+          // Surfaces "(1)" on the Friends tab when there's a pending
+          // friend request. Cleared once you accept/decline.
+          tabBarBadge: pendingRequestCount > 0 ? pendingRequestCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: COLORS.accent, color: "#fff" },
+        }}
+      />
       <Tabs.Screen name="Me" component={MeScreen} />
     </Tabs.Navigator>
   );
@@ -70,16 +80,37 @@ export function RootNavigator() {
   const { loading, session, user } = useSession();
   const navRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
 
-  // Deep-link from a tapped push: { type: 'broadcast', landmarkId }
+  const { refreshBadges } = useSession();
+
+  // Deep-link from a tapped push:
+  //   { type: 'broadcast', landmarkId } → Landmark detail
+  //   { type: 'friend_request' }        → Friends tab
+  //   { type: 'rsvp', landmarkId }      → Landmark detail (broadcaster sees RSVP context)
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener((resp) => {
       const data = resp.notification.request.content.data as any;
-      if (data?.type === "broadcast" && data.landmarkId && navRef.current) {
+      if (!navRef.current) return;
+      if (data?.type === "broadcast" && data.landmarkId) {
         navRef.current.navigate("Landmark", { landmarkId: data.landmarkId });
+      } else if (data?.type === "rsvp" && data.landmarkId) {
+        navRef.current.navigate("Landmark", { landmarkId: data.landmarkId });
+      } else if (data?.type === "friend_request") {
+        navRef.current.navigate("Main");
+        // Refresh count so the badge updates immediately when the user lands.
+        refreshBadges?.();
       }
     });
-    return () => sub.remove();
-  }, []);
+    // Also refresh the badge when a push is RECEIVED (not just tapped),
+    // so the (1) appears without requiring app-foreground.
+    const received = Notifications.addNotificationReceivedListener((notif) => {
+      const data = notif.request.content.data as any;
+      if (data?.type === "friend_request") refreshBadges?.();
+    });
+    return () => {
+      sub.remove();
+      received.remove();
+    };
+  }, [refreshBadges]);
 
   if (loading) {
     return (

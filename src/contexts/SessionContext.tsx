@@ -9,6 +9,7 @@ import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/config/supabase";
 import { AppUser, Family } from "@/types";
 import { registerForPushNotifications } from "@/services/push";
+import { getPendingRequestCount } from "@/services/friends";
 
 // Three states the app cares about:
 //   1. loading     — initial session check in flight
@@ -25,6 +26,12 @@ interface SessionContextValue {
   loading: boolean;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
+  // Badge counts surfaced on the bottom tabs. Refreshed when:
+  //   - app boots / loads profile
+  //   - we receive a push (handled in RootNavigator)
+  //   - any screen calls refreshBadges() after a write
+  pendingRequestCount: number;
+  refreshBadges: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextValue | undefined>(undefined);
@@ -34,6 +41,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [family, setFamily] = useState<Family | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pendingRequestCount, setPendingRequestCount] = useState(0);
 
   async function loadProfile(authUserId: string) {
     const { data: userRow } = await supabase
@@ -45,6 +53,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     if (!userRow) {
       setUser(null);
       setFamily(null);
+      setPendingRequestCount(0);
       return;
     }
     setUser(userRow as AppUser);
@@ -59,6 +68,23 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       .maybeSingle();
 
     setFamily((familyRow as Family) ?? null);
+
+    // Initial badge count.
+    if (familyRow) {
+      getPendingRequestCount((familyRow as Family).id)
+        .then(setPendingRequestCount)
+        .catch(() => {});
+    }
+  }
+
+  async function refreshBadgesInternal() {
+    if (!family) return;
+    try {
+      const n = await getPendingRequestCount(family.id);
+      setPendingRequestCount(n);
+    } catch {
+      // ignore
+    }
   }
 
   useEffect(() => {
@@ -80,6 +106,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       } else {
         setUser(null);
         setFamily(null);
+        setPendingRequestCount(0);
       }
     });
 
@@ -95,14 +122,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       user,
       family,
       loading,
+      pendingRequestCount,
       refreshProfile: async () => {
         if (session?.user) await loadProfile(session.user.id);
       },
+      refreshBadges: refreshBadgesInternal,
       signOut: async () => {
         await supabase.auth.signOut();
       },
     }),
-    [session, user, family, loading]
+    [session, user, family, loading, pendingRequestCount]
   );
 
   return (

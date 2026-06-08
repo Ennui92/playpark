@@ -20,27 +20,38 @@ import {
   addFriendViaUsername,
   getFriendFamilies,
   removeFriendship,
+  getPendingFriendRequests,
+  acceptFriendRequest,
+  declineFriendRequest,
 } from "@/services/friends";
 import { useSession } from "@/contexts/SessionContext";
-import { Family, RootStackParamList } from "@/types";
+import { Family, FriendRequest, RootStackParamList } from "@/types";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function FriendsScreen() {
   const nav = useNavigation<Nav>();
-  const { family, user } = useSession();
+  const { family, user, refreshBadges } = useSession();
   const [friends, setFriends] = useState<Family[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([]);
   const [username, setUsername] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [adding, setAdding] = useState(false);
 
   const load = useCallback(async () => {
     if (!family) return;
-    const fs = await getFriendFamilies(family.id);
+    const [fs, reqs] = await Promise.all([
+      getFriendFamilies(family.id),
+      getPendingFriendRequests(),
+    ]);
     setFriends(fs);
+    setPendingRequests(reqs);
     setRefreshing(false);
-  }, [family]);
+    // Bubble badge count refresh up to the session so the tab badge
+    // updates after we accept/decline here.
+    await refreshBadges?.();
+  }, [family, refreshBadges]);
 
   useEffect(() => {
     load();
@@ -53,11 +64,38 @@ export function FriendsScreen() {
     try {
       await addFriendViaUsername(u);
       setUsername("");
+      Alert.alert(
+        "Request sent",
+        `If @${u} accepts, you'll start seeing each other's outings.`
+      );
       await load();
     } catch (e: any) {
       Alert.alert("Couldn't add", e.message ?? "Try again.");
     } finally {
       setAdding(false);
+    }
+  }
+
+  async function onAccept(reqId: string) {
+    // Optimistic — drop the row from local state immediately.
+    setPendingRequests((prev) => prev.filter((r) => r.id !== reqId));
+    try {
+      await acceptFriendRequest(reqId);
+      await load();
+    } catch (e: any) {
+      Alert.alert("Couldn't accept", e.message ?? "Try again.");
+      await load();
+    }
+  }
+
+  async function onDecline(reqId: string) {
+    setPendingRequests((prev) => prev.filter((r) => r.id !== reqId));
+    try {
+      await declineFriendRequest(reqId);
+      await refreshBadges?.();
+    } catch (e: any) {
+      Alert.alert("Couldn't decline", e.message ?? "Try again.");
+      await load();
     }
   }
 
@@ -116,6 +154,35 @@ export function FriendsScreen() {
         ListHeaderComponent={
           <View style={styles.header}>
             <Text style={styles.title}>Friends</Text>
+
+            {pendingRequests.length > 0 && (
+              <View style={styles.pendingCard}>
+                <Text style={styles.pendingTitle}>
+                  {pendingRequests.length} friend request
+                  {pendingRequests.length === 1 ? "" : "s"}
+                </Text>
+                {pendingRequests.map((req) => (
+                  <View key={req.id} style={styles.pendingRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.pendingName}>{req.from_family_name}</Text>
+                      <Text style={styles.pendingMeta}>{req.from_family_zip}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.acceptBtn}
+                      onPress={() => onAccept(req.id)}
+                    >
+                      <Text style={styles.acceptBtnText}>Accept</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.declineBtn}
+                      onPress={() => onDecline(req.id)}
+                    >
+                      <Text style={styles.declineBtnText}>Decline</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
 
             {!!user && (
               <View style={styles.youCard}>
@@ -299,4 +366,42 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: SPACING.xs,
   },
+  pendingCard: {
+    backgroundColor: COLORS.accentLight,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.lg,
+    ...SHADOW.sm,
+  },
+  pendingTitle: {
+    fontWeight: "800",
+    color: COLORS.textPrimary,
+    fontSize: FONT_SIZE.sm,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: SPACING.sm,
+  },
+  pendingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.sm,
+    paddingVertical: SPACING.sm,
+  },
+  pendingName: { fontWeight: "700", color: COLORS.textPrimary, fontSize: FONT_SIZE.md },
+  pendingMeta: { color: COLORS.textSecondary, fontSize: FONT_SIZE.xs, marginTop: 2 },
+  acceptBtn: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.accent,
+  },
+  acceptBtnText: { color: "#fff", fontWeight: "700" },
+  declineBtn: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  declineBtnText: { color: COLORS.textPrimary, fontWeight: "700" },
 });

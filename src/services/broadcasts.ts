@@ -1,5 +1,5 @@
 import { supabase } from "@/config/supabase";
-import { Broadcast, BroadcastFeedItem } from "@/types";
+import { Broadcast, BroadcastFeedItem, BroadcastRsvpRow, RsvpStatus } from "@/types";
 
 export async function createBroadcast(params: {
   familyId: string;
@@ -80,4 +80,56 @@ export async function getActiveBroadcastsForLandmark(
     landmark_name: row.landmarks?.name ?? "Unknown",
     landmark_emoji: row.landmarks?.emoji ?? "📍",
   })) as BroadcastFeedItem[];
+}
+
+// ─── RSVPs ────────────────────────────────────────────────────────────────
+
+export async function setBroadcastRsvp(
+  broadcastId: string,
+  status: RsvpStatus
+): Promise<void> {
+  const { error } = await supabase.rpc("set_broadcast_rsvp", {
+    _broadcast_id: broadcastId,
+    _status: status,
+  });
+  if (error) throw error;
+}
+
+// All RSVPs visible to me for a broadcast, enriched with the responder's
+// family name. RLS handles whether I'm allowed to see them (I am, if I'm
+// the broadcaster or a friend of the broadcaster).
+export async function getRsvpsForBroadcast(
+  broadcastId: string
+): Promise<BroadcastRsvpRow[]> {
+  const { data, error } = await supabase
+    .from("broadcast_rsvps")
+    .select(`
+      broadcast_id, family_id, status, created_at, updated_at,
+      families:family_id ( name )
+    `)
+    .eq("broadcast_id", broadcastId);
+  if (error) throw error;
+  return (data ?? []).map((r: any) => ({
+    broadcast_id: r.broadcast_id,
+    family_id: r.family_id,
+    status: r.status,
+    created_at: r.created_at,
+    updated_at: r.updated_at,
+    family_name: r.families?.name ?? "Someone",
+  })) as BroadcastRsvpRow[];
+}
+
+// What's MY current RSVP on a given broadcast, if any?
+export async function getMyRsvp(
+  broadcastId: string,
+  myFamilyId: string
+): Promise<RsvpStatus | null> {
+  const { data, error } = await supabase
+    .from("broadcast_rsvps")
+    .select("status")
+    .eq("broadcast_id", broadcastId)
+    .eq("family_id", myFamilyId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data?.status as RsvpStatus) ?? null;
 }

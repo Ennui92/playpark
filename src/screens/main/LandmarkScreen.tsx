@@ -23,14 +23,18 @@ import {
   deleteUserLandmark,
 } from "@/services/landmarks";
 import { Alert } from "react-native";
-import { getActiveBroadcastsForLandmark } from "@/services/broadcasts";
+import {
+  getActiveBroadcastsForLandmark,
+  setBroadcastRsvp,
+  getRsvpsForBroadcast,
+} from "@/services/broadcasts";
 import {
   favoriteLandmark,
   getFavoriteLandmarkIds,
   unfavoriteLandmark,
 } from "@/services/favorites";
 import { MapPreview } from "@/components/MapPreview";
-import { Landmark, BroadcastFeedItem, RootStackParamList } from "@/types";
+import { Landmark, BroadcastFeedItem, BroadcastRsvpRow, RsvpStatus, RootStackParamList } from "@/types";
 import { useSession } from "@/contexts/SessionContext";
 import { COLORS, FONT_SIZE, RADIUS, SPACING, SHADOW } from "@/utils/theme";
 import { formatWhen } from "@/utils/format";
@@ -46,6 +50,10 @@ export function LandmarkScreen() {
 
   const [landmark, setLandmark] = useState<Landmark | null>(null);
   const [broadcasts, setBroadcasts] = useState<BroadcastFeedItem[]>([]);
+  // broadcast_id → array of all RSVPs visible to me on that broadcast.
+  const [rsvpsByBroadcast, setRsvpsByBroadcast] = useState<
+    Record<string, BroadcastRsvpRow[]>
+  >({});
   const [subscribed, setSubscribed] = useState(false);
   const [favorite, setFavorite] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -103,8 +111,41 @@ export function LandmarkScreen() {
     setBroadcasts(bs);
     setSubscribed(subs.has(landmarkId));
     setFavorite(favs.has(landmarkId));
+
+    // RSVPs are per-broadcast — fetch in parallel.
+    const rsvpResults = await Promise.all(
+      bs.map((b) => getRsvpsForBroadcast(b.id).then((rs) => [b.id, rs] as const))
+    );
+    setRsvpsByBroadcast(Object.fromEntries(rsvpResults));
+
     setLoading(false);
   }, [family, landmarkId]);
+
+  // Optimistic RSVP toggle. Updates local state immediately, fires the
+  // RPC, reloads on error.
+  async function onRsvp(broadcastId: string, status: RsvpStatus) {
+    if (!family) return;
+    const prev = rsvpsByBroadcast[broadcastId] ?? [];
+    const without = prev.filter((r) => r.family_id !== family.id);
+    const next: BroadcastRsvpRow = {
+      broadcast_id: broadcastId,
+      family_id: family.id,
+      status,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      family_name: family.name,
+    };
+    setRsvpsByBroadcast({
+      ...rsvpsByBroadcast,
+      [broadcastId]: [...without, next],
+    });
+    try {
+      await setBroadcastRsvp(broadcastId, status);
+    } catch (e: any) {
+      Alert.alert("Couldn't RSVP", e?.message ?? "Try again.");
+      await load();
+    }
+  }
 
   async function toggleFavorite() {
     if (!family) return;
@@ -211,13 +252,63 @@ export function LandmarkScreen() {
           {broadcasts.length === 0 ? (
             <Text style={styles.empty}>No one yet. Be the first.</Text>
           ) : (
-            broadcasts.map((b) => (
-              <View key={b.id} style={styles.bcCard}>
-                <Text style={styles.bcWho}>{b.family_name}</Text>
-                <Text style={styles.bcWhen}>{formatWhen(new Date(b.planned_at))}</Text>
-                {!!b.message && <Text style={styles.bcMsg}>"{b.message}"</Text>}
-              </View>
-            ))
+            broadcasts.map((b) => {
+              const rsvps = rsvpsByBroadcast[b.id] ?? [];
+              const coming = rsvps.filter((r) => r.status === "coming");
+              const maybe = rsvps.filter((r) => r.status === "maybe");
+              const mine = rsvps.find((r) => r.family_id === family?.id);
+              const isOwnBroadcast = b.family_id === family?.id;
+
+              return (
+                <View key={b.id} style={styles.bcCard}>
+                  <Text style={styles.bcWho}>{b.family_name}</Text>
+                  <Text style={styles.bcWhen}>
+                    {formatWhen(new Date(b.planned_at))}
+                  </Text>
+                  {!!b.message && <Text style={styles.bcMsg}>"{b.message}"</Text>}
+
+                  {(coming.length > 0 || maybe.length > 0) && (
+                    <Text style={styles.bcRsvpSummary}>
+                      {coming.length > 0 && `${coming.length} coming`}
+                      {coming.length > 0 && maybe.length > 0 && " · "}
+                      {maybe.length > 0 && `${maybe.length} maybe`}
+                      {coming.length > 0 &&
+                        ` (${coming.slice(0, 3).map((r) => r.family_name).join(", ")}${coming.length > 3 ? ` +${coming.length - 3}` : ""})`}
+                    </Text>
+                  )}
+
+                  {!isOwnBroadcast && (
+                    <View style={styles.rsvpRow}>
+                      {(["coming", "maybe", "not_coming"] as const).map((s) => {
+                        const active = mine?.status === s;
+                        const label =
+                          s === "coming"
+                            ? "I'm coming"
+                            : s === "maybe"
+                              ? "Maybe"
+                              : "Can't";
+                        return (
+                          <TouchableOpacity
+                            key={s}
+                            style={[styles.rsvpBtn, active && styles.rsvpBtnActive]}
+                            onPress={() => onRsvp(b.id, s)}
+                          >
+                            <Text
+                              style={[
+                                styles.rsvpBtnText,
+                                active && styles.rsvpBtnTextActive,
+                              ]}
+                            >
+                              {label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+              );
+            })
           )}
         </View>
       </ScrollView>
@@ -311,6 +402,37 @@ const styles = StyleSheet.create({
   bcWho: { fontWeight: "700", color: COLORS.textPrimary, fontSize: FONT_SIZE.md },
   bcWhen: { color: COLORS.ever, fontWeight: "600", marginTop: 2 },
   bcMsg: { color: COLORS.textSecondary, marginTop: SPACING.xs, fontStyle: "italic" },
+  bcRsvpSummary: {
+    color: COLORS.textSecondary,
+    fontSize: FONT_SIZE.sm,
+    marginTop: SPACING.sm,
+    fontWeight: "600",
+  },
+  rsvpRow: {
+    flexDirection: "row",
+    gap: SPACING.xs,
+    marginTop: SPACING.sm,
+  },
+  rsvpBtn: {
+    flex: 1,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.xs,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.background,
+    alignItems: "center",
+  },
+  rsvpBtnActive: {
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
+  },
+  rsvpBtnText: {
+    color: COLORS.textPrimary,
+    fontWeight: "700",
+    fontSize: FONT_SIZE.sm,
+  },
+  rsvpBtnTextActive: { color: "#fff" },
   footer: {
     padding: SPACING.md,
     backgroundColor: COLORS.surface,

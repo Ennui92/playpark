@@ -71,6 +71,31 @@ export interface BroadcastFeedItem extends Broadcast {
   landmark_emoji: string;
 }
 
+export type RsvpStatus = "coming" | "maybe" | "not_coming";
+
+export interface BroadcastRsvp {
+  broadcast_id: string;
+  family_id: string;
+  status: RsvpStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+// Enriched RSVP for showing "X friends are coming" on a broadcast card.
+export interface BroadcastRsvpRow extends BroadcastRsvp {
+  family_name: string;
+}
+
+// Pending incoming friend request, enriched with the sender's family.
+export interface FriendRequest {
+  id: string;
+  from_family_id: string;
+  to_family_id: string;
+  created_at: string;
+  from_family_name: string;
+  from_family_zip: string;
+}
+
 // ─── Navigation ───────────────────────────────────────────────────────────
 
 export type RootStackParamList = {
