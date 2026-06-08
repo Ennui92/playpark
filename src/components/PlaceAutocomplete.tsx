@@ -27,10 +27,20 @@ export function PlaceAutocomplete({ onPick, placeholder }: Props) {
   const [loading, setLoading] = useState(false);
   const [resolving, setResolving] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // After a pick we set the input to the picked name, which used to trip
+  // the debounced effect and re-open the dropdown with "even more
+  // matches for Kollwitzplatz". Track the just-picked value so we skip
+  // the next autocomplete fetch when q matches it exactly.
+  const lastPicked = useRef<string | null>(null);
 
   useEffect(() => {
     if (debounce.current) clearTimeout(debounce.current);
     if (q.trim().length < 2) {
+      setResults([]);
+      return;
+    }
+    // Suppress the search if q hasn't changed from the just-picked value.
+    if (lastPicked.current && q === lastPicked.current) {
       setResults([]);
       return;
     }
@@ -48,10 +58,19 @@ export function PlaceAutocomplete({ onPick, placeholder }: Props) {
   async function pick(p: PlacePrediction) {
     setResolving(true);
     setResults([]);
+    lastPicked.current = p.primary;
     setQ(p.primary);
     const details = await getPlaceDetails(p.placeId);
     setResolving(false);
     if (details) onPick(details);
+  }
+
+  function handleChange(text: string) {
+    // User started editing again → release the suppression.
+    if (lastPicked.current && text !== lastPicked.current) {
+      lastPicked.current = null;
+    }
+    setQ(text);
   }
 
   return (
@@ -59,7 +78,7 @@ export function PlaceAutocomplete({ onPick, placeholder }: Props) {
       <TextInput
         style={styles.input}
         value={q}
-        onChangeText={setQ}
+        onChangeText={handleChange}
         placeholder={placeholder ?? "Search a place or address"}
         placeholderTextColor={COLORS.textTertiary}
         autoCapitalize="none"

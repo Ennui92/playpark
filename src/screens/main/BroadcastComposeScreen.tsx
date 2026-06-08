@@ -77,7 +77,8 @@ export function BroadcastComposeScreen() {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
       >
         <View style={styles.topBar}>
           <TouchableOpacity onPress={() => nav.goBack()}>

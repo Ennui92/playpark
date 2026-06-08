@@ -20,6 +20,8 @@ import { BroadcastComposeScreen } from "@/screens/main/BroadcastComposeScreen";
 import { BroadcastSuccessScreen } from "@/screens/main/BroadcastSuccessScreen";
 import { AddLandmarkScreen } from "@/screens/main/AddLandmarkScreen";
 import { EditNeighborhoodScreen } from "@/screens/main/EditNeighborhoodScreen";
+import { EditProfileScreen } from "@/screens/main/EditProfileScreen";
+import { FriendProfileScreen } from "@/screens/main/FriendProfileScreen";
 import { QRShareScreen } from "@/screens/friends/QRShareScreen";
 import { QRScanScreen } from "@/screens/friends/QRScanScreen";
 
@@ -157,6 +159,12 @@ export function RootNavigator() {
               component={EditNeighborhoodScreen}
               options={{ presentation: "modal" }}
             />
+            <RootStack.Screen
+              name="EditProfile"
+              component={EditProfileScreen}
+              options={{ presentation: "modal" }}
+            />
+            <RootStack.Screen name="FriendProfile" component={FriendProfileScreen} />
             <RootStack.Screen name="QRShare" component={QRShareScreen} />
             <RootStack.Screen name="QRScan" component={QRScanScreen} />
           </>

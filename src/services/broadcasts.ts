@@ -23,10 +23,25 @@ export async function createBroadcast(params: {
   return data as Broadcast;
 }
 
-export async function endBroadcast(id: string) {
+export async function endBroadcast(id: string, finalMessage?: string | null) {
+  const update: Record<string, any> = { ended_at: new Date().toISOString() };
+  if (finalMessage !== undefined) update.message = finalMessage;
   const { error } = await supabase
     .from("broadcasts")
-    .update({ ended_at: new Date().toISOString() })
+    .update(update)
+    .eq("id", id);
+  if (error) throw error;
+}
+
+// Update the broadcast's status message ("Running 10 min late", etc.).
+// Triggers a push to RSVPed friends via dispatch_broadcast_update_push().
+export async function updateBroadcastMessage(
+  id: string,
+  message: string | null
+) {
+  const { error } = await supabase
+    .from("broadcasts")
+    .update({ message })
     .eq("id", id);
   if (error) throw error;
 }

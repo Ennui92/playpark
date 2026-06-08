@@ -18,6 +18,7 @@ export interface Family {
   name: string;
   zip: string;
   avatar_url: string | null;
+  bio: string | null;
   created_at: string;
 }
 
@@ -111,6 +112,8 @@ export type RootStackParamList = {
   };
   AddLandmark: undefined;
   EditNeighborhood: undefined;
+  EditProfile: undefined;
+  FriendProfile: { familyId: string };
   QRShare: undefined;
   QRScan: undefined;
 };

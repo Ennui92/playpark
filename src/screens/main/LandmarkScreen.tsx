@@ -27,6 +27,8 @@ import {
   getActiveBroadcastsForLandmark,
   setBroadcastRsvp,
   getRsvpsForBroadcast,
+  endBroadcast,
+  updateBroadcastMessage,
 } from "@/services/broadcasts";
 import {
   favoriteLandmark,
@@ -120,6 +122,55 @@ export function LandmarkScreen() {
 
     setLoading(false);
   }, [family, landmarkId]);
+
+  // Does the current family already have an ACTIVE broadcast at this
+  // landmark? If so, the footer flips to status-update + end mode.
+  const myActiveBroadcast = useMemo(
+    () => broadcasts.find((b) => b.family_id === family?.id) ?? null,
+    [broadcasts, family?.id]
+  );
+  const [updatingBroadcast, setUpdatingBroadcast] = useState(false);
+
+  async function onStatusPreset(
+    broadcastId: string,
+    preset: { label: string; message: string; ends?: boolean }
+  ) {
+    setUpdatingBroadcast(true);
+    try {
+      if (preset.ends) {
+        await endBroadcast(broadcastId, preset.message);
+      } else {
+        await updateBroadcastMessage(broadcastId, preset.message);
+      }
+      Alert.alert("Sent", "Friends who RSVPed will get a heads-up.");
+      await load();
+    } catch (e: any) {
+      Alert.alert("Couldn't send", e?.message ?? "Try again.");
+    } finally {
+      setUpdatingBroadcast(false);
+    }
+  }
+
+  async function onEndBroadcast(broadcastId: string) {
+    Alert.alert("End broadcast?", "Friends won't get further updates.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "End",
+        style: "destructive",
+        onPress: async () => {
+          setUpdatingBroadcast(true);
+          try {
+            await endBroadcast(broadcastId);
+            await load();
+          } catch (e: any) {
+            Alert.alert("Couldn't end", e?.message ?? "Try again.");
+          } finally {
+            setUpdatingBroadcast(false);
+          }
+        },
+      },
+    ]);
+  }
 
   // Optimistic RSVP toggle. Updates local state immediately, fires the
   // RPC, reloads on error.
@@ -314,14 +365,45 @@ export function LandmarkScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <Button
-          title="Broadcast: we're going"
-          onPress={() => nav.navigate("BroadcastCompose", { landmarkId })}
-        />
+        {myActiveBroadcast ? (
+          <View>
+            <Text style={styles.footerLabel}>You're broadcasting</Text>
+            <View style={styles.statusChips}>
+              {STATUS_PRESETS.map((preset) => (
+                <TouchableOpacity
+                  key={preset.label}
+                  style={styles.statusChip}
+                  onPress={() => onStatusPreset(myActiveBroadcast.id, preset)}
+                  disabled={updatingBroadcast}
+                >
+                  <Text style={styles.statusChipText}>{preset.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity
+              onPress={() => onEndBroadcast(myActiveBroadcast.id)}
+              style={styles.endBtn}
+              disabled={updatingBroadcast}
+            >
+              <Text style={styles.endBtnText}>End broadcast</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <Button
+            title="Broadcast: we're going"
+            onPress={() => nav.navigate("BroadcastCompose", { landmarkId })}
+          />
+        )}
       </View>
     </SafeAreaView>
   );
 }
+
+const STATUS_PRESETS: { label: string; message: string; ends?: boolean }[] = [
+  { label: "Running 10 min late", message: "Running 10 min late — see you soon" },
+  { label: "Just arrived", message: "We're here!" },
+  { label: "Heading home", message: "Heading home — thanks for coming", ends: true },
+];
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
@@ -433,6 +515,34 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.sm,
   },
   rsvpBtnTextActive: { color: "#fff" },
+  footerLabel: {
+    color: COLORS.accent,
+    fontWeight: "800",
+    fontSize: FONT_SIZE.sm,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: SPACING.sm,
+  },
+  statusChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  statusChip: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.accentLight,
+    borderWidth: 1,
+    borderColor: COLORS.accent,
+  },
+  statusChipText: { color: COLORS.accent, fontWeight: "700", fontSize: FONT_SIZE.sm },
+  endBtn: {
+    paddingVertical: SPACING.sm,
+    alignItems: "center",
+  },
+  endBtnText: { color: COLORS.danger, fontWeight: "700", fontSize: FONT_SIZE.sm },
   footer: {
     padding: SPACING.md,
     backgroundColor: COLORS.surface,

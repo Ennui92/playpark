@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -28,6 +28,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 export function MeScreen() {
   const { family, user, signOut } = useSession();
   const nav = useNavigation<Nav>();
+  const avatarUrl = family?.avatar_url ?? null;
 
   function confirmDeleteAccount() {
     Alert.alert(
@@ -56,10 +57,32 @@ export function MeScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.body}>
-        <Text style={styles.title}>{family?.name ?? "Your account"}</Text>
-        <Text style={styles.sub}>
-          {user?.display_name} · @{user?.username}
-        </Text>
+        <View style={styles.heroRow}>
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.heroAvatar} />
+          ) : (
+            <View style={[styles.heroAvatar, styles.heroAvatarFallback]}>
+              <Text style={styles.heroAvatarText}>
+                {(family?.name ?? "?").charAt(0).toUpperCase()}
+              </Text>
+            </View>
+          )}
+          <View style={{ flex: 1 }}>
+            <Text style={styles.title}>{family?.name ?? "Your account"}</Text>
+            <Text style={styles.sub}>
+              {user?.display_name} · @{user?.username}
+            </Text>
+          </View>
+        </View>
+
+        {!!family?.bio && <Text style={styles.bio}>{family.bio}</Text>}
+
+        <TouchableOpacity
+          style={styles.editBtn}
+          onPress={() => nav.navigate("EditProfile")}
+        >
+          <Text style={styles.editBtnText}>✏️ Edit profile</Text>
+        </TouchableOpacity>
 
         <View style={styles.card}>
           <TouchableOpacity
@@ -147,4 +170,33 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.sm,
     fontWeight: "600",
   },
+  heroRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.md,
+  },
+  heroAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: COLORS.accentLight,
+  },
+  heroAvatarFallback: { alignItems: "center", justifyContent: "center" },
+  heroAvatarText: { color: COLORS.accent, fontWeight: "800", fontSize: 26 },
+  bio: {
+    color: COLORS.textPrimary,
+    marginTop: SPACING.md,
+    fontSize: FONT_SIZE.md,
+    lineHeight: 22,
+  },
+  editBtn: {
+    alignSelf: "flex-start",
+    marginTop: SPACING.md,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  editBtnText: { color: COLORS.textPrimary, fontWeight: "700" },
 });

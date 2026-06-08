@@ -10,6 +10,7 @@ import {
   RefreshControl,
   Share,
   Platform,
+  Image,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -249,11 +250,16 @@ export function FriendsScreen() {
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.friendCard}
+            onPress={() => nav.navigate("FriendProfile", { familyId: item.id })}
             onLongPress={() => confirmRemove(item)}
           >
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{item.name.charAt(0).toUpperCase()}</Text>
-            </View>
+            {item.avatar_url ? (
+              <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{item.name.charAt(0).toUpperCase()}</Text>
+              </View>
+            )}
             <View style={{ flex: 1 }}>
               <Text style={styles.friendName}>{item.name}</Text>
               <Text style={styles.friendZip}>{item.zip}</Text>
