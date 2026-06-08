@@ -1,0 +1,116 @@
+name: Build Android AAB (production)
+
+# Produces a Google Play Store-ready Android App Bundle (.aab) using
+# the EAS "production" profile. Output is attached to a GitHub Release
+# tagged "prod-N" so you can drag-drop into Play Console's Internal
+# Testing (or Production) track.
+#
+# Manual trigger only — production builds bump the EAS version code
+# (autoIncrement: true) every run, so they cost a sequence number
+# each time. Don't fire on every push to main.
+#
+# Required repo secret:
+#   EXPO_TOKEN  — same one used by the preview APK workflow.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: EAS Android production build (AAB)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Expo / EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Stamp build info into app.json
+        # Same as the preview workflow — bake the CI run number + commit
+        # SHA into expo.extra so the installed app's Me screen reports
+        # which AAB it came from.
+        run: |
+          set -euo pipefail
+          node -e "
+            const fs = require('fs');
+            const p = './app.json';
+            const j = JSON.parse(fs.readFileSync(p, 'utf8'));
+            j.expo.extra = j.expo.extra || {};
+            j.expo.extra.buildNumber = 'prod-${{ github.run_number }}';
+            j.expo.extra.gitSha = '${{ github.sha }}';
+            fs.writeFileSync(p, JSON.stringify(j, null, 2) + '\n');
+          "
+
+      - name: Run EAS build (Android production, AAB)
+        id: eas
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          eas build \
+            --platform android \
+            --profile production \
+            --non-interactive \
+            --json \
+            --wait \
+            > build.json
+          cat build.json
+          ARTIFACT_URL=$(node -e "const b=require('./build.json');const r=Array.isArray(b)?b[0]:b;console.log(r.artifacts?.buildUrl||'');")
+          BUILD_PAGE=$(node -e "const b=require('./build.json');const r=Array.isArray(b)?b[0]:b;console.log('https://expo.dev/accounts/'+r.project.ownerAccount.name+'/projects/'+r.project.slug+'/builds/'+r.id);")
+          VERSION_CODE=$(node -e "const b=require('./build.json');const r=Array.isArray(b)?b[0]:b;console.log(r.versionCode||'');")
+          echo "artifact_url=$ARTIFACT_URL" >> "$GITHUB_OUTPUT"
+          echo "build_page=$BUILD_PAGE"     >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+
+      - name: Download AAB and attach to a GitHub Release
+        if: steps.eas.outputs.artifact_url != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          curl -L --fail -o outside.aab "${{ steps.eas.outputs.artifact_url }}"
+          TAG="prod-${{ github.run_number }}"
+          COMMIT_MSG=$(git log -1 --format=%s)
+          gh release create "$TAG" outside.aab \
+            --title "Play Store AAB — production build #${{ github.run_number }}" \
+            --notes "Upload this .aab to Play Console → Internal testing → Create new release.
+
+          Commit: $COMMIT_MSG
+          versionCode: ${{ steps.eas.outputs.version_code }}
+          EAS build page: ${{ steps.eas.outputs.build_page }}" \
+            --target "${{ github.sha }}"
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/$TAG"
+          echo "release_url=$RELEASE_URL" >> "$GITHUB_OUTPUT"
+        id: release
+
+      - name: Publish links to summary
+        run: |
+          {
+            echo "## ✅ Production AAB ready for Play Console"
+            echo ""
+            echo "**Download .aab:** ${{ steps.release.outputs.release_url }}"
+            echo ""
+            echo "### Upload steps"
+            echo "1. Open https://play.google.com/console → your Outside app"
+            echo "2. Testing → Internal testing → Create new release"
+            echo "3. Drag the .aab file into the bundle slot"
+            echo "4. Fill release notes (or paste the commit message), save, review, roll out"
+            echo ""
+            echo "**EAS build page:** ${{ steps.eas.outputs.build_page }}"
+            echo "**versionCode:** ${{ steps.eas.outputs.version_code }}"
+          } >> "$GITHUB_STEP_SUMMARY"
