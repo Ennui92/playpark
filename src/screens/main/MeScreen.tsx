@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Constants from "expo-constants";
 import { Button } from "@/components/Button";
 import { useSession } from "@/contexts/SessionContext";
+import { deleteMyAccount } from "@/services/auth";
 import { RootStackParamList } from "@/types";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 
@@ -27,6 +28,30 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 export function MeScreen() {
   const { family, user, signOut } = useSession();
   const nav = useNavigation<Nav>();
+
+  function confirmDeleteAccount() {
+    Alert.alert(
+      "Delete your account?",
+      "This is permanent. Your account, friendships, broadcasts, and any places you added will be removed. Landmarks you contributed stay in the catalogue (no creator credit).",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete account",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteMyAccount();
+              // signOut state propagates automatically via the session
+              // context's onAuthStateChange listener, so we don't need
+              // to navigate manually.
+            } catch (e: any) {
+              Alert.alert("Couldn't delete", e?.message ?? "Try again.");
+            }
+          },
+        },
+      ]
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -58,6 +83,10 @@ export function MeScreen() {
           }
           style={{ marginTop: SPACING.xl }}
         />
+
+        <TouchableOpacity onPress={confirmDeleteAccount} style={styles.dangerLink}>
+          <Text style={styles.dangerLinkText}>Delete account</Text>
+        </TouchableOpacity>
 
         <Text style={styles.version}>
           Outside v{APP_VERSION} · build {BUILD_NUMBER}
@@ -107,5 +136,15 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xs,
     textAlign: "center",
     marginTop: SPACING.xxl,
+  },
+  dangerLink: {
+    alignSelf: "center",
+    marginTop: SPACING.lg,
+    padding: SPACING.sm,
+  },
+  dangerLinkText: {
+    color: COLORS.danger,
+    fontSize: FONT_SIZE.sm,
+    fontWeight: "600",
   },
 });

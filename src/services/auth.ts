@@ -75,3 +75,35 @@ export async function completeSignup(params: {
   });
   if (error) throw error;
 }
+
+// Irreversible. Calls the delete-my-account edge function which uses the
+// service role to (a) drop the family if the user is the sole member,
+// then (b) delete the auth.users row (cascades the public.users row).
+// Required by Play Store for any app with sign-in.
+export async function deleteMyAccount(): Promise<void> {
+  const { data: sess } = await supabase.auth.getSession();
+  const token = sess.session?.access_token;
+  if (!token) throw new Error("not signed in");
+
+  const url = extra.supabaseUrl;
+  const anonKey = extra.supabaseAnonKey;
+  if (!url || !anonKey) throw new Error("missing supabase config");
+
+  const resp = await fetch(`${url}/functions/v1/delete-my-account`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      apikey: anonKey,
+    },
+    body: "{}",
+  });
+  const body = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    throw new Error(body?.error ?? `delete-my-account ${resp.status}`);
+  }
+
+  // Sign out locally — the auth user is already gone server-side but the
+  // local session token still exists in storage until we explicitly clear.
+  await supabase.auth.signOut();
+}

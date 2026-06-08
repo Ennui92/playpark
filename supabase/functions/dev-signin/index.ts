@@ -9,7 +9,10 @@
 // │                                                                           │
 // │ Deploy: supabase functions deploy dev-signin --no-verify-jwt             │
 // │                                                                           │
-// │ ⚠️  Remove / gate behind an env flag before shipping to users.            │
+// │ ⚠️  Gated behind env var ALLOW_DEV_SIGNIN=1. To turn the backdoor OFF    │
+// │     for production, unset the variable in the Supabase dashboard         │
+// │     (Project Settings → Edge Functions → Environment Variables).         │
+// │     With the var unset, this function returns 403 to every request.     │
 // └──────────────────────────────────────────────────────────────────────────┘
 
 // deno-lint-ignore-file no-explicit-any
@@ -17,6 +20,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const ALLOW_DEV_SIGNIN = Deno.env.get("ALLOW_DEV_SIGNIN") === "1";
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -24,6 +28,10 @@ const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
 
 Deno.serve(async (req) => {
   try {
+    if (!ALLOW_DEV_SIGNIN) {
+      return json({ error: "dev sign-in disabled" }, 403);
+    }
+
     const { email } = (await req.json()) as { email?: string };
     if (!email || !email.includes("@")) {
       return json({ error: "email required" }, 400);

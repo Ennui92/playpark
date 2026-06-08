@@ -6,7 +6,9 @@
     "orientation": "portrait",
     "scheme": "outside",
     "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#FFFBF2"
     },
@@ -19,7 +21,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#FFFBF2"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FF7A59"
       },
       "package": "dev.ermis.outside",
       "permissions": [
@@ -33,7 +36,9 @@
         }
       }
     },
-    "web": {},
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
     "plugins": [
       [
         "expo-notifications",
