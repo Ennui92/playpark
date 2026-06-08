@@ -24,6 +24,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FF7A59"
       },
+      "googleServicesFile": "./google-services.json",
       "package": "dev.ermis.outside",
       "permissions": [
         "CAMERA",

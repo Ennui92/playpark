@@ -39,3 +39,9 @@ src/config/firebase.ts
 # RN crash dump filenames that occasionally land at repo root
 com.facebook.react.devsupport.*
 java.util.concurrent.ThreadPoolExecutor*
+
+# Firebase / FCM
+firebase-service-account.json
+google-services1.json
+*-firebase-adminsdk-*.json
+

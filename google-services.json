@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "705720554840",
+    "project_id": "nearme-5827e",
+    "storage_bucket": "nearme-5827e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:705720554840:android:1fb8b723792e45fe35012d",
+        "android_client_info": {
+          "package_name": "dev.ermis.outside"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAjZPKYts0gmkV-3JYnonIJ_kLUGajszns"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
