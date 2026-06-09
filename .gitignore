@@ -19,7 +19,11 @@ functions/node_modules/
 functions/lib/
 
 # Secrets - NEVER commit these
-google-services.json
+# NOTE: google-services.json is intentionally NOT ignored — it's the Android
+# FCM *client* config (package-restricted, not a secret) and MUST be tracked
+# so EAS Build includes it in the upload. EAS excludes gitignored paths even
+# when committed, which silently breaks the build (missing google-services.json).
+# The sensitive Firebase *service account* key stays ignored below.
 GoogleService-Info.plist
 src/config/firebase.ts
 

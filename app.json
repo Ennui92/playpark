@@ -44,8 +44,7 @@
       [
         "expo-notifications",
         {
-          "color": "#FF7A59",
-          "androidMode": "default"
+          "color": "#FF7A59"
         }
       ],
       [
