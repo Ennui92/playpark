@@ -4,9 +4,24 @@ import * as ImagePicker from "expo-image-picker";
 
 const AVATAR_BUCKET = "avatars";
 
+// Decode a base64 string to a byte array. React Native's Hermes engine
+// has global atob() (RN 0.74+), so no extra dependency is needed.
+function base64ToBytes(b64: string): Uint8Array {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
 // Pick a square image from the library, upload to Supabase Storage at
 // `<family_id>.jpg`, and update families.avatar_url with the public URL.
 // Returns the new public URL on success.
+//
+// NOTE: we upload the image as raw bytes decoded from base64, NOT via
+// `fetch(uri).then(r => r.blob())`. The Blob path is unreliable on React
+// Native — it commonly throws "Network request failed" or hangs on the
+// Supabase Storage upload. Requesting base64 from ImagePicker and uploading
+// an ArrayBuffer is the RN-correct pattern.
 export async function pickAndUploadAvatar(familyId: string): Promise<string> {
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted) throw new Error("Photo access denied");
@@ -15,18 +30,20 @@ export async function pickAndUploadAvatar(familyId: string): Promise<string> {
     mediaTypes: ImagePicker.MediaTypeOptions.Images,
     allowsEditing: true,
     aspect: [1, 1],
-    quality: 0.85,
+    quality: 0.7,
+    base64: true,
   });
   if (result.canceled || !result.assets?.[0]) {
     throw new Error("Cancelled");
   }
-  const uri = result.assets[0].uri;
-  const blob = await fetch(uri).then((r) => r.blob());
+  const b64 = result.assets[0].base64;
+  if (!b64) throw new Error("Could not read image data");
+  const bytes = base64ToBytes(b64);
 
   const path = `${familyId}.jpg`;
   const { error: upErr } = await supabase.storage
     .from(AVATAR_BUCKET)
-    .upload(path, blob, {
+    .upload(path, bytes, {
       contentType: "image/jpeg",
       upsert: true,
       cacheControl: "3600",

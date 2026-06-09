@@ -141,7 +141,7 @@ export function EditProfileScreen() {
             title={t("common.save")}
             onPress={onSave}
             loading={saving}
-            disabled={saving}
+            disabled={saving || uploading}
             style={{ marginTop: SPACING.xl }}
           />
         </ScrollView>

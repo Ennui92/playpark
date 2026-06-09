@@ -11,7 +11,7 @@ import {
   Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Button } from "@/components/Button";
 import {
@@ -105,25 +105,31 @@ export function LandmarkScreen() {
 
   const load = useCallback(async () => {
     if (!family) return;
-    const [lm, bs, subs, favs] = await Promise.all([
-      getLandmarkById(landmarkId),
-      getActiveBroadcastsForLandmark(landmarkId),
-      getSubscribedLandmarkIds(family.id),
-      getFavoriteLandmarkIds(family.id),
-    ]);
-    setLandmark(lm);
-    setBroadcasts(bs);
-    setSubscribed(subs.has(landmarkId));
-    setFavorite(favs.has(landmarkId));
+    try {
+      const [lm, bs, subs, favs] = await Promise.all([
+        getLandmarkById(landmarkId),
+        getActiveBroadcastsForLandmark(landmarkId),
+        getSubscribedLandmarkIds(family.id),
+        getFavoriteLandmarkIds(family.id),
+      ]);
+      setLandmark(lm);
+      setBroadcasts(bs);
+      setSubscribed(subs.has(landmarkId));
+      setFavorite(favs.has(landmarkId));
 
-    // RSVPs are per-broadcast — fetch in parallel.
-    const rsvpResults = await Promise.all(
-      bs.map((b) => getRsvpsForBroadcast(b.id).then((rs) => [b.id, rs] as const))
-    );
-    setRsvpsByBroadcast(Object.fromEntries(rsvpResults));
-
-    setLoading(false);
-  }, [family, landmarkId]);
+      // RSVPs are per-broadcast — fetch in parallel.
+      const rsvpResults = await Promise.all(
+        bs.map((b) => getRsvpsForBroadcast(b.id).then((rs) => [b.id, rs] as const))
+      );
+      setRsvpsByBroadcast(Object.fromEntries(rsvpResults));
+    } catch (e: any) {
+      // Surface instead of spinning forever (e.g. timed-out request).
+      Alert.alert(t("common.somethingWrong"), e?.message ?? t("common.tryAgain"));
+    } finally {
+      // Always stop the spinner, success or failure.
+      setLoading(false);
+    }
+  }, [family, landmarkId, t]);
 
   // Does the current family already have an ACTIVE broadcast at this
   // landmark? If so, the footer flips to status-update + end mode.
@@ -216,6 +222,15 @@ export function LandmarkScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Refetch when returning to this screen (e.g. after composing a
+  // broadcast) so the footer flips to the active-broadcast state without
+  // the user having to bounce to Home and back.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   async function toggleSubscribe(next: boolean) {
     if (!family) return;
