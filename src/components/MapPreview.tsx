@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE, MapPressEvent, MarkerDragStartEndEvent, MapType } from "react-native-maps";
+import { useT } from "@/i18n";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 
 interface Props {
@@ -23,6 +24,7 @@ export function MapPreview({
   label,
   onCoordChange,
 }: Props) {
+  const t = useT();
   const [mapType, setMapType] = useState<MapType>("standard");
 
   function openDirections() {
@@ -93,13 +95,13 @@ export function MapPreview({
         activeOpacity={0.85}
       >
         <Text style={styles.mapTypeText}>
-          {showingSatellite ? "🗺 Map" : "🛰 Satellite"}
+          {showingSatellite ? t("map.map") : t("map.satellite")}
         </Text>
       </TouchableOpacity>
 
       {editable && (
         <View style={styles.editHint}>
-          <Text style={styles.editHintText}>Drag the pin or tap to move it</Text>
+          <Text style={styles.editHintText}>{t("map.dragHint")}</Text>
         </View>
       )}
 
@@ -109,7 +111,7 @@ export function MapPreview({
           onPress={openDirections}
           activeOpacity={0.85}
         >
-          <Text style={styles.directionsText}>↗ Directions</Text>
+          <Text style={styles.directionsText}>{t("map.directions")}</Text>
         </TouchableOpacity>
       )}
     </View>

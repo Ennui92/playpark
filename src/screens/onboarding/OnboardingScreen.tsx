@@ -12,8 +12,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { ZipPicker } from "@/components/ZipPicker";
+import { LanguagePicker } from "@/components/LanguagePicker";
 import { completeSignup } from "@/services/auth";
 import { useSession } from "@/contexts/SessionContext";
+import { useT } from "@/i18n";
 import { BERLIN_ZIP_SET } from "@/data/berlinZips";
 import { COLORS, FONT_SIZE, RADIUS, SPACING } from "@/utils/theme";
 
@@ -22,6 +24,7 @@ import { COLORS, FONT_SIZE, RADIUS, SPACING } from "@/utils/theme";
 
 export function OnboardingScreen() {
   const { refreshProfile } = useSession();
+  const t = useT();
   const [familyName, setFamilyName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
@@ -55,9 +58,9 @@ export function OnboardingScreen() {
     } catch (e: any) {
       const msg = e.message ?? "";
       if (msg.includes("duplicate") || msg.includes("unique")) {
-        Alert.alert("Username taken", "Try a different one.");
+        Alert.alert(t("onb.usernameTaken"), t("onb.usernameTakenSub"));
       } else {
-        Alert.alert("Something went wrong", msg || "Try again.");
+        Alert.alert(t("common.somethingWrong"), msg || t("common.tryAgain"));
       }
     } finally {
       setSaving(false);
@@ -71,55 +74,50 @@ export function OnboardingScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>Set up your account.</Text>
-          <Text style={styles.sub}>
-            A few details so friends can find you and you can broadcast where you're
-            headed.
-          </Text>
+          <Text style={styles.title}>{t("onb.title")}</Text>
+          <Text style={styles.sub}>{t("onb.sub")}</Text>
 
-          <Label>Your name</Label>
+          <Label>{t("lang.pickerLabel")}</Label>
+          <LanguagePicker />
+
+          <Label>{t("onb.yourName")}</Label>
           <TextInput
             style={styles.input}
-            placeholder="e.g. Jess"
+            placeholder={t("onb.yourNamePlaceholder")}
             placeholderTextColor={COLORS.textTertiary}
             value={displayName}
             onChangeText={setDisplayName}
             maxLength={40}
           />
 
-          <Label>Your neighborhood (PLZ)</Label>
+          <Label>{t("onb.neighborhood")}</Label>
           <ZipPicker value={zip || null} onChange={setZip} />
 
-          <Label>Pick a username</Label>
+          <Label>{t("onb.username")}</Label>
           <TextInput
             style={styles.input}
-            placeholder="jess_b"
+            placeholder={t("onb.usernamePlaceholder")}
             placeholderTextColor={COLORS.textTertiary}
             value={username}
-            onChangeText={(t) => setUsername(t.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+            onChangeText={(v) => setUsername(v.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
             autoCapitalize="none"
             maxLength={20}
           />
-          <Text style={styles.hint}>
-            3–20 chars, lowercase letters/numbers/underscore. Friends can find you by this.
-          </Text>
+          <Text style={styles.hint}>{t("onb.usernameHint")}</Text>
 
-          <Label>Group name (optional)</Label>
+          <Label>{t("onb.groupName")}</Label>
           <TextInput
             style={styles.input}
-            placeholder="e.g. The Chens — if you're broadcasting as a family"
+            placeholder={t("onb.groupNamePlaceholder")}
             placeholderTextColor={COLORS.textTertiary}
             value={familyName}
             onChangeText={setFamilyName}
             maxLength={40}
           />
-          <Text style={styles.hint}>
-            Leave blank if it's just you. Useful if multiple people share one account
-            (parents broadcasting together as "the Chens").
-          </Text>
+          <Text style={styles.hint}>{t("onb.groupNameHint")}</Text>
 
           <Button
-            title="Get started"
+            title={t("onb.getStarted")}
             onPress={submit}
             loading={saving}
             disabled={!canSubmit}

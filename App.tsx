@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useFonts } from "expo-font";
 import { Ionicons } from "@expo/vector-icons";
+import { LanguageProvider } from "@/i18n";
 import { SessionProvider } from "@/contexts/SessionContext";
 import { RootNavigator } from "@/navigation";
 
@@ -19,10 +20,12 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <SessionProvider>
-          <StatusBar style="dark" />
-          <RootNavigator />
-        </SessionProvider>
+        <LanguageProvider>
+          <SessionProvider>
+            <StatusBar style="dark" />
+            <RootNavigator />
+          </SessionProvider>
+        </LanguageProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

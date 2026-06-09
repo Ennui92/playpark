@@ -26,6 +26,7 @@ import {
   declineFriendRequest,
 } from "@/services/friends";
 import { useSession } from "@/contexts/SessionContext";
+import { useT } from "@/i18n";
 import { Family, FriendRequest, RootStackParamList } from "@/types";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 
@@ -34,6 +35,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 export function FriendsScreen() {
   const nav = useNavigation<Nav>();
   const { family, user, refreshBadges } = useSession();
+  const t = useT();
   const [friends, setFriends] = useState<Family[]>([]);
   const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([]);
   const [username, setUsername] = useState("");
@@ -65,13 +67,10 @@ export function FriendsScreen() {
     try {
       await addFriendViaUsername(u);
       setUsername("");
-      Alert.alert(
-        "Request sent",
-        `If @${u} accepts, you'll start seeing each other's outings.`
-      );
+      Alert.alert(t("friends.requestSent"), t("friends.requestSentSub", { username: u }));
       await load();
     } catch (e: any) {
-      Alert.alert("Couldn't add", e.message ?? "Try again.");
+      Alert.alert(t("friends.couldntAdd"), e.message ?? t("common.tryAgain"));
     } finally {
       setAdding(false);
     }
@@ -84,7 +83,7 @@ export function FriendsScreen() {
       await acceptFriendRequest(reqId);
       await load();
     } catch (e: any) {
-      Alert.alert("Couldn't accept", e.message ?? "Try again.");
+      Alert.alert(t("friends.couldntAccept"), e.message ?? t("common.tryAgain"));
       await load();
     }
   }
@@ -95,7 +94,7 @@ export function FriendsScreen() {
       await declineFriendRequest(reqId);
       await refreshBadges?.();
     } catch (e: any) {
-      Alert.alert("Couldn't decline", e.message ?? "Try again.");
+      Alert.alert(t("friends.couldntDecline"), e.message ?? t("common.tryAgain"));
       await load();
     }
   }
@@ -103,19 +102,17 @@ export function FriendsScreen() {
   async function copyUsername() {
     if (!user) return;
     await Clipboard.setStringAsync(`@${user.username}`);
-    Alert.alert("Copied", `@${user.username} is on your clipboard.`);
+    Alert.alert(t("friends.copied"), t("friends.copiedSub", { username: user.username }));
   }
 
   async function shareUsername() {
     if (!user) return;
-    const msg =
-      `Add me on Outside — search @${user.username} (or scan my QR in the app).` +
-      `\n\nOutside is the simple way to see where friends are headed in Berlin.`;
+    const msg = t("friends.shareMessage", { username: user.username });
     try {
       await Share.share(
         Platform.OS === "ios"
           ? { message: msg }
-          : { message: msg, title: "Add me on Outside" }
+          : { message: msg, title: t("friends.shareTitle") }
       );
     } catch {
       // user cancelled — silent
@@ -123,10 +120,10 @@ export function FriendsScreen() {
   }
 
   function confirmRemove(f: Family) {
-    Alert.alert(`Remove ${f.name}?`, "They'll stop seeing your broadcasts.", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert(t("friends.removeTitle", { name: f.name }), t("friends.removeSub"), [
+      { text: t("common.cancel"), style: "cancel" },
       {
-        text: "Remove",
+        text: t("friends.remove"),
         style: "destructive",
         onPress: async () => {
           await removeFriendship(f.id);
@@ -154,13 +151,17 @@ export function FriendsScreen() {
         }
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={styles.title}>Friends</Text>
+            <Text style={styles.title}>{t("friends.title")}</Text>
 
             {pendingRequests.length > 0 && (
               <View style={styles.pendingCard}>
                 <Text style={styles.pendingTitle}>
-                  {pendingRequests.length} friend request
-                  {pendingRequests.length === 1 ? "" : "s"}
+                  {t(
+                    pendingRequests.length === 1
+                      ? "friends.requestsOne"
+                      : "friends.requestsMany",
+                    { count: pendingRequests.length }
+                  )}
                 </Text>
                 {pendingRequests.map((req) => (
                   <View key={req.id} style={styles.pendingRow}>
@@ -172,13 +173,13 @@ export function FriendsScreen() {
                       style={styles.acceptBtn}
                       onPress={() => onAccept(req.id)}
                     >
-                      <Text style={styles.acceptBtnText}>Accept</Text>
+                      <Text style={styles.acceptBtnText}>{t("friends.accept")}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.declineBtn}
                       onPress={() => onDecline(req.id)}
                     >
-                      <Text style={styles.declineBtnText}>Decline</Text>
+                      <Text style={styles.declineBtnText}>{t("friends.decline")}</Text>
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -188,34 +189,34 @@ export function FriendsScreen() {
             {!!user && (
               <View style={styles.youCard}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.youLabel}>Your handle</Text>
+                  <Text style={styles.youLabel}>{t("friends.yourHandle")}</Text>
                   <Text style={styles.youHandle}>@{user.username}</Text>
                 </View>
                 <TouchableOpacity style={styles.iconBtn} onPress={copyUsername}>
-                  <Text style={styles.iconBtnText}>Copy</Text>
+                  <Text style={styles.iconBtnText}>{t("friends.copy")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.iconBtnPrimary} onPress={shareUsername}>
-                  <Text style={styles.iconBtnPrimaryText}>Share</Text>
+                  <Text style={styles.iconBtnPrimaryText}>{t("friends.share")}</Text>
                 </TouchableOpacity>
               </View>
             )}
 
             <View style={styles.qrRow}>
               <Button
-                title="Show my QR"
+                title={t("friends.showQr")}
                 variant="primary"
                 onPress={() => nav.navigate("QRShare")}
                 style={{ flex: 1 }}
               />
               <Button
-                title="Scan QR"
+                title={t("friends.scanQr")}
                 variant="secondary"
                 onPress={() => nav.navigate("QRScan")}
                 style={{ flex: 1 }}
               />
             </View>
 
-            <Text style={styles.or}>or add by username</Text>
+            <Text style={styles.or}>{t("friends.orAddByUsername")}</Text>
             <View style={styles.addRow}>
               <TextInput
                 style={styles.input}
@@ -226,7 +227,7 @@ export function FriendsScreen() {
                 autoCapitalize="none"
               />
               <Button
-                title="Add"
+                title={t("common.add")}
                 onPress={addByUsername}
                 loading={adding}
                 disabled={username.length < 3}
@@ -234,17 +235,17 @@ export function FriendsScreen() {
             </View>
 
             <Text style={[styles.sectionLabel, { marginTop: SPACING.xl }]}>
-              {friends.length} {friends.length === 1 ? "friend" : "friends"}
+              {t(friends.length === 1 ? "friends.countOne" : "friends.countMany", {
+                count: friends.length,
+              })}
             </Text>
           </View>
         }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyEmoji}>👯</Text>
-            <Text style={styles.emptyTitle}>No friends yet</Text>
-            <Text style={styles.emptySub}>
-              Scan a QR in person, or add by username.
-            </Text>
+            <Text style={styles.emptyTitle}>{t("friends.emptyTitle")}</Text>
+            <Text style={styles.emptySub}>{t("friends.emptySub")}</Text>
           </View>
         }
         renderItem={({ item }) => (

@@ -16,6 +16,7 @@ import * as Location from "expo-location";
 import { Button } from "@/components/Button";
 import { createUserLandmark } from "@/services/landmarks";
 import { useSession } from "@/contexts/SessionContext";
+import { useT, TranslationKey } from "@/i18n";
 import { LandmarkCategory } from "@/types";
 import { reverseGeocode, GeocodeResult, hasGoogleMapsKey, PlaceDetails } from "@/services/geocoding";
 import { BERLIN_ZIP_SET } from "@/data/berlinZips";
@@ -23,22 +24,24 @@ import { PlaceAutocomplete } from "@/components/PlaceAutocomplete";
 import { MapPreview } from "@/components/MapPreview";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 
-const CATEGORIES: { key: LandmarkCategory; label: string; emoji: string }[] = [
-  { key: "playground",       label: "Playground",        emoji: "🛝" },
-  { key: "park",             label: "Park",              emoji: "🌳" },
-  { key: "square",           label: "Square",            emoji: "🟧" },
-  { key: "cafe",             label: "Cafe",              emoji: "☕" },
-  { key: "library",          label: "Library",           emoji: "📚" },
-  { key: "indoor_play",      label: "Indoor play",       emoji: "🎪" },
-  { key: "community_center", label: "Community center",  emoji: "🏛️" },
-  { key: "flea_market",      label: "Flea market",       emoji: "🛍️" },
-  { key: "event",            label: "Event venue",       emoji: "🎉" },
-  { key: "other",            label: "Other",             emoji: "📍" },
+// label comes from t("cat.<key>") at render time.
+const CATEGORIES: { key: LandmarkCategory; emoji: string }[] = [
+  { key: "playground",       emoji: "🛝" },
+  { key: "park",             emoji: "🌳" },
+  { key: "square",           emoji: "🟧" },
+  { key: "cafe",             emoji: "☕" },
+  { key: "library",          emoji: "📚" },
+  { key: "indoor_play",      emoji: "🎪" },
+  { key: "community_center", emoji: "🏛️" },
+  { key: "flea_market",      emoji: "🛍️" },
+  { key: "event",            emoji: "🎉" },
+  { key: "other",            emoji: "📍" },
 ];
 
 export function AddLandmarkScreen() {
   const nav = useNavigation();
   const { family } = useSession();
+  const t = useT();
 
   const [name, setName] = useState("");
   const [category, setCategory] = useState<LandmarkCategory>("cafe");
@@ -53,7 +56,7 @@ export function AddLandmarkScreen() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("Permission needed", "Enable location to pin your spot.");
+        Alert.alert(t("add.permNeeded"), t("add.permSub"));
         setLocating(false);
         return;
       }
@@ -78,13 +81,10 @@ export function AddLandmarkScreen() {
           .then((g) => setGeo(g))
           .catch(() => {});
       } else {
-        Alert.alert(
-          "No fix yet",
-          "Step outside or try again — GPS couldn't lock on."
-        );
+        Alert.alert(t("add.noFix"), t("add.noFixSub"));
       }
     } catch (e: any) {
-      Alert.alert("Couldn't get location", e.message ?? "Try again.");
+      Alert.alert(t("add.couldntLocate"), e.message ?? t("common.tryAgain"));
     } finally {
       setLocating(false);
     }
@@ -115,11 +115,11 @@ export function AddLandmarkScreen() {
         lat: coords.lat,
         lng: coords.lng,
       });
-      Alert.alert("Added!", `"${lm.name}" is now on the map.`, [
-        { text: "Nice", onPress: () => nav.goBack() },
+      Alert.alert(t("add.added"), t("add.addedSub", { name: lm.name }), [
+        { text: t("add.nice"), onPress: () => nav.goBack() },
       ]);
     } catch (e: any) {
-      Alert.alert("Couldn't add", e.message ?? "Try again.");
+      Alert.alert(t("add.couldntAdd"), e.message ?? t("common.tryAgain"));
     } finally {
       setSaving(false);
     }
@@ -135,7 +135,7 @@ export function AddLandmarkScreen() {
       >
         <View style={styles.topBar}>
           <TouchableOpacity onPress={() => nav.goBack()}>
-            <Text style={styles.back}>Cancel</Text>
+            <Text style={styles.back}>{t("common.cancel")}</Text>
           </TouchableOpacity>
         </View>
 
@@ -143,16 +143,14 @@ export function AddLandmarkScreen() {
           contentContainerStyle={styles.body}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.title}>Add a place</Text>
-          <Text style={styles.sub}>
-            A favorite cafe, a hidden playground — friends see it too.
-          </Text>
+          <Text style={styles.title}>{t("add.title")}</Text>
+          <Text style={styles.sub}>{t("add.sub")}</Text>
 
           {hasGoogleMapsKey() && (
             <>
-              <Label>Search a place</Label>
+              <Label>{t("add.searchLabel")}</Label>
               <PlaceAutocomplete
-                placeholder="Café KuchenRausch, Kollwitzplatz…"
+                placeholder={t("add.searchPlaceholder")}
                 onPick={(place: PlaceDetails) => {
                   // Pre-fill everything from the picked place. Name is
                   // editable in the field below.
@@ -166,23 +164,21 @@ export function AddLandmarkScreen() {
                   });
                 }}
               />
-              <Text style={styles.fineprint}>
-                Or pin your live location below.
-              </Text>
+              <Text style={styles.fineprint}>{t("add.orPin")}</Text>
             </>
           )}
 
-          <Label>Name</Label>
+          <Label>{t("add.nameLabel")}</Label>
           <TextInput
             style={styles.input}
             value={name}
             onChangeText={setName}
-            placeholder="e.g. Café KuchenRausch"
+            placeholder={t("add.namePlaceholder")}
             placeholderTextColor={COLORS.textTertiary}
             maxLength={60}
           />
 
-          <Label>Kind of place</Label>
+          <Label>{t("add.kind")}</Label>
           <View style={styles.chips}>
             {CATEGORIES.map((c) => (
               <TouchableOpacity
@@ -194,18 +190,18 @@ export function AddLandmarkScreen() {
                 <Text
                   style={[styles.chipLabel, category === c.key && styles.chipLabelActive]}
                 >
-                  {c.label}
+                  {t(`cat.${c.key}` as TranslationKey)}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          <Label>Location</Label>
+          <Label>{t("add.location")}</Label>
           <View style={styles.locBox}>
             {coords ? (
               <>
                 <Text style={styles.locAddress}>
-                  📍 {geo?.shortName ?? "Pinned"}
+                  📍 {geo?.shortName ?? t("add.pinned")}
                 </Text>
                 <Text style={styles.locFormatted}>
                   {geo?.formatted ??
@@ -218,18 +214,22 @@ export function AddLandmarkScreen() {
                 )}
               </>
             ) : (
-              <Text style={styles.locHint}>Not set</Text>
+              <Text style={styles.locHint}>{t("add.notSet")}</Text>
             )}
             <Button
-              title={locating ? "Locating…" : coords ? "Re-pin here" : "Use my location"}
+              title={
+                locating
+                  ? t("add.locating")
+                  : coords
+                    ? t("add.rePin")
+                    : t("add.useLocation")
+              }
               variant="secondary"
               onPress={useCurrentLocation}
               loading={locating}
               style={{ marginTop: SPACING.sm }}
             />
-            <Text style={styles.locFine}>
-              Tip: stand at the spot for the best pin.
-            </Text>
+            <Text style={styles.locFine}>{t("add.tipStand")}</Text>
           </View>
 
           {coords && (
@@ -242,14 +242,12 @@ export function AddLandmarkScreen() {
                 label={name || undefined}
                 onCoordChange={(lat, lng) => setCoords({ lat, lng })}
               />
-              <Text style={styles.locFine}>
-                Pin not quite right? Drag it or tap the map to move it.
-              </Text>
+              <Text style={styles.locFine}>{t("add.tipDrag")}</Text>
             </View>
           )}
 
           <Button
-            title="Add place"
+            title={t("add.addPlace")}
             onPress={save}
             loading={saving}
             disabled={!canSave}

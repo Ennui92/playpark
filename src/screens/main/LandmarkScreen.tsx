@@ -38,6 +38,7 @@ import {
 import { MapPreview } from "@/components/MapPreview";
 import { Landmark, BroadcastFeedItem, BroadcastRsvpRow, RsvpStatus, RootStackParamList } from "@/types";
 import { useSession } from "@/contexts/SessionContext";
+import { useT, TranslationKey } from "@/i18n";
 import { COLORS, FONT_SIZE, RADIUS, SPACING, SHADOW } from "@/utils/theme";
 import { formatWhen } from "@/utils/format";
 
@@ -49,6 +50,7 @@ export function LandmarkScreen() {
   const route = useRoute<Route>();
   const { landmarkId } = route.params;
   const { family } = useSession();
+  const t = useT();
 
   const [landmark, setLandmark] = useState<Landmark | null>(null);
   const [broadcasts, setBroadcasts] = useState<BroadcastFeedItem[]>([]);
@@ -72,7 +74,7 @@ export function LandmarkScreen() {
     try {
       await updateUserLandmark(landmark.id, { lat, lng });
     } catch (e: any) {
-      Alert.alert("Couldn't save pin", e.message ?? "Try again.");
+      Alert.alert(t("lm.couldntSavePin"), e.message ?? t("common.tryAgain"));
       // Reload to get the true server state if we lost the race.
       load();
     }
@@ -81,19 +83,19 @@ export function LandmarkScreen() {
   function confirmDelete() {
     if (!landmark) return;
     Alert.alert(
-      `Delete "${landmark.name}"?`,
-      "It'll disappear from everyone's list. Broadcasts you've made for it stay.",
+      t("lm.deleteTitle", { name: landmark.name }),
+      t("lm.deleteSub"),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t("common.cancel"), style: "cancel" },
         {
-          text: "Delete",
+          text: t("lm.delete"),
           style: "destructive",
           onPress: async () => {
             try {
               await deleteUserLandmark(landmark.id);
               nav.goBack();
             } catch (e: any) {
-              Alert.alert("Couldn't delete", e.message ?? "Try again.");
+              Alert.alert(t("lm.couldntDelete"), e.message ?? t("common.tryAgain"));
             }
           },
         },
@@ -133,29 +135,30 @@ export function LandmarkScreen() {
 
   async function onStatusPreset(
     broadcastId: string,
-    preset: { label: string; message: string; ends?: boolean }
+    preset: { labelKey: TranslationKey; messageKey: TranslationKey; ends?: boolean }
   ) {
     setUpdatingBroadcast(true);
     try {
+      const message = t(preset.messageKey);
       if (preset.ends) {
-        await endBroadcast(broadcastId, preset.message);
+        await endBroadcast(broadcastId, message);
       } else {
-        await updateBroadcastMessage(broadcastId, preset.message);
+        await updateBroadcastMessage(broadcastId, message);
       }
-      Alert.alert("Sent", "Friends who RSVPed will get a heads-up.");
+      Alert.alert(t("lm.sent"), t("lm.sentSub"));
       await load();
     } catch (e: any) {
-      Alert.alert("Couldn't send", e?.message ?? "Try again.");
+      Alert.alert(t("lm.couldntSend"), e?.message ?? t("common.tryAgain"));
     } finally {
       setUpdatingBroadcast(false);
     }
   }
 
   async function onEndBroadcast(broadcastId: string) {
-    Alert.alert("End broadcast?", "Friends won't get further updates.", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert(t("lm.endTitle"), t("lm.endSub"), [
+      { text: t("common.cancel"), style: "cancel" },
       {
-        text: "End",
+        text: t("lm.end"),
         style: "destructive",
         onPress: async () => {
           setUpdatingBroadcast(true);
@@ -163,7 +166,7 @@ export function LandmarkScreen() {
             await endBroadcast(broadcastId);
             await load();
           } catch (e: any) {
-            Alert.alert("Couldn't end", e?.message ?? "Try again.");
+            Alert.alert(t("lm.couldntEnd"), e?.message ?? t("common.tryAgain"));
           } finally {
             setUpdatingBroadcast(false);
           }
@@ -193,7 +196,7 @@ export function LandmarkScreen() {
     try {
       await setBroadcastRsvp(broadcastId, status);
     } catch (e: any) {
-      Alert.alert("Couldn't RSVP", e?.message ?? "Try again.");
+      Alert.alert(t("lm.rsvpCouldnt"), e?.message ?? t("common.tryAgain"));
       await load();
     }
   }
@@ -239,7 +242,7 @@ export function LandmarkScreen() {
       <ScrollView>
         <View style={styles.topBar}>
           <TouchableOpacity onPress={() => nav.goBack()}>
-            <Text style={styles.back}>← Back</Text>
+            <Text style={styles.back}>{t("common.back")}</Text>
           </TouchableOpacity>
         </View>
 
@@ -247,12 +250,12 @@ export function LandmarkScreen() {
           <Text style={styles.heroEmoji}>{landmark.emoji}</Text>
           <Text style={styles.heroName}>{landmark.name}</Text>
           <Text style={styles.heroMeta}>
-            {landmark.category.replace("_", " ")} · {landmark.zip}
+            {t(`cat.${landmark.category}` as TranslationKey)} · {landmark.zip}
           </Text>
           <TouchableOpacity onPress={toggleFavorite} style={styles.favBtn}>
             <Text style={styles.favEmoji}>{favorite ? "❤️" : "🤍"}</Text>
             <Text style={styles.favLabel}>
-              {favorite ? "Favorited" : "Favorite"}
+              {favorite ? t("lm.favorited") : t("lm.favorite")}
             </Text>
           </TouchableOpacity>
         </View>
@@ -274,21 +277,19 @@ export function LandmarkScreen() {
               onPress={() => setEditingPin((v) => !v)}
             >
               <Text style={[styles.creatorBtnText, editingPin && styles.creatorBtnTextActive]}>
-                {editingPin ? "Done moving pin" : "✏️ Move pin"}
+                {editingPin ? t("lm.donePin") : t("lm.movePin")}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.creatorBtnDanger} onPress={confirmDelete}>
-              <Text style={styles.creatorBtnDangerText}>🗑 Delete place</Text>
+              <Text style={styles.creatorBtnDangerText}>{t("lm.deletePlace")}</Text>
             </TouchableOpacity>
           </View>
         )}
 
         <View style={styles.subRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.subTitle}>Notify me when friends head here</Text>
-            <Text style={styles.subHint}>
-              You'll get a push when any friend family broadcasts this spot.
-            </Text>
+            <Text style={styles.subTitle}>{t("lm.notifyTitle")}</Text>
+            <Text style={styles.subHint}>{t("lm.notifySub")}</Text>
           </View>
           <Switch
             value={subscribed}
@@ -299,9 +300,9 @@ export function LandmarkScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Who's headed here</Text>
+          <Text style={styles.sectionTitle}>{t("lm.whosHeaded")}</Text>
           {broadcasts.length === 0 ? (
-            <Text style={styles.empty}>No one yet. Be the first.</Text>
+            <Text style={styles.empty}>{t("lm.noOneYet")}</Text>
           ) : (
             broadcasts.map((b) => {
               const rsvps = rsvpsByBroadcast[b.id] ?? [];
@@ -320,9 +321,9 @@ export function LandmarkScreen() {
 
                   {(coming.length > 0 || maybe.length > 0) && (
                     <Text style={styles.bcRsvpSummary}>
-                      {coming.length > 0 && `${coming.length} coming`}
+                      {coming.length > 0 && t("lm.summaryComing", { count: coming.length })}
                       {coming.length > 0 && maybe.length > 0 && " · "}
-                      {maybe.length > 0 && `${maybe.length} maybe`}
+                      {maybe.length > 0 && t("lm.summaryMaybe", { count: maybe.length })}
                       {coming.length > 0 &&
                         ` (${coming.slice(0, 3).map((r) => r.family_name).join(", ")}${coming.length > 3 ? ` +${coming.length - 3}` : ""})`}
                     </Text>
@@ -334,10 +335,10 @@ export function LandmarkScreen() {
                         const active = mine?.status === s;
                         const label =
                           s === "coming"
-                            ? "I'm coming"
+                            ? t("lm.rsvpComing")
                             : s === "maybe"
-                              ? "Maybe"
-                              : "Can't";
+                              ? t("lm.rsvpMaybe")
+                              : t("lm.rsvpCant");
                         return (
                           <TouchableOpacity
                             key={s}
@@ -367,16 +368,16 @@ export function LandmarkScreen() {
       <View style={styles.footer}>
         {myActiveBroadcast ? (
           <View>
-            <Text style={styles.footerLabel}>You're broadcasting</Text>
+            <Text style={styles.footerLabel}>{t("lm.youreBroadcasting")}</Text>
             <View style={styles.statusChips}>
               {STATUS_PRESETS.map((preset) => (
                 <TouchableOpacity
-                  key={preset.label}
+                  key={preset.labelKey}
                   style={styles.statusChip}
                   onPress={() => onStatusPreset(myActiveBroadcast.id, preset)}
                   disabled={updatingBroadcast}
                 >
-                  <Text style={styles.statusChipText}>{preset.label}</Text>
+                  <Text style={styles.statusChipText}>{t(preset.labelKey)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -385,12 +386,12 @@ export function LandmarkScreen() {
               style={styles.endBtn}
               disabled={updatingBroadcast}
             >
-              <Text style={styles.endBtnText}>End broadcast</Text>
+              <Text style={styles.endBtnText}>{t("lm.endBroadcast")}</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <Button
-            title="Broadcast: we're going"
+            title={t("lm.broadcastGoing")}
             onPress={() => nav.navigate("BroadcastCompose", { landmarkId })}
           />
         )}
@@ -399,10 +400,12 @@ export function LandmarkScreen() {
   );
 }
 
-const STATUS_PRESETS: { label: string; message: string; ends?: boolean }[] = [
-  { label: "Running 10 min late", message: "Running 10 min late — see you soon" },
-  { label: "Just arrived", message: "We're here!" },
-  { label: "Heading home", message: "Heading home — thanks for coming", ends: true },
+// Labels are translation keys resolved at render/send time so the
+// broadcaster's status message goes out in their chosen language.
+const STATUS_PRESETS: { labelKey: TranslationKey; messageKey: TranslationKey; ends?: boolean }[] = [
+  { labelKey: "lm.statusLate", messageKey: "lm.statusLate" },
+  { labelKey: "lm.statusArrived", messageKey: "lm.statusArrived" },
+  { labelKey: "lm.statusHome", messageKey: "lm.statusHome", ends: true },
 ];
 
 const styles = StyleSheet.create({

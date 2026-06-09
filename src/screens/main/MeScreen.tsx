@@ -6,9 +6,11 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Constants from "expo-constants";
 import * as Updates from "expo-updates";
 import { Button } from "@/components/Button";
+import { LanguagePicker } from "@/components/LanguagePicker";
 import { useSession } from "@/contexts/SessionContext";
 import { deleteMyAccount } from "@/services/auth";
 import { registerForPushNotifications } from "@/services/push";
+import { useT } from "@/i18n";
 import { RootStackParamList } from "@/types";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 
@@ -30,18 +32,16 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 export function MeScreen() {
   const { family, user, signOut } = useSession();
   const nav = useNavigation<Nav>();
+  const t = useT();
   const avatarUrl = family?.avatar_url ?? null;
 
   async function testPushSetup() {
     if (!user) return;
     try {
       const token = await registerForPushNotifications(user.id);
-      Alert.alert(
-        "Push registered ✓",
-        `Token saved.\n\n${token.slice(0, 40)}…\n\nYou should now receive notifications from friends.`
-      );
+      Alert.alert(t("me.pushOk"), `${token.slice(0, 40)}…\n\n${t("me.pushOkSub")}`);
     } catch (e: any) {
-      Alert.alert("Push setup failed", e?.message ?? "Unknown error");
+      Alert.alert(t("me.pushFailed"), e?.message ?? "Unknown error");
     }
   }
 
@@ -50,51 +50,42 @@ export function MeScreen() {
   // every app start automatically; this is just a "force now" shortcut.
   async function checkForUpdates() {
     if (!Updates.isEnabled) {
-      Alert.alert(
-        "Updates not enabled",
-        "This build doesn't have expo-updates wired (probably a dev client). OTA works on signed APKs from EAS."
-      );
+      Alert.alert(t("me.updatesDisabled"), t("me.updatesDisabledSub"));
       return;
     }
     try {
       const check = await Updates.checkForUpdateAsync();
       if (!check.isAvailable) {
-        Alert.alert("Up to date", "You're already on the latest bundle.");
+        Alert.alert(t("me.upToDate"), t("me.upToDateSub"));
         return;
       }
       await Updates.fetchUpdateAsync();
-      Alert.alert(
-        "Update ready",
-        "Restarting to apply…",
-        [{ text: "Restart", onPress: () => Updates.reloadAsync() }]
-      );
+      Alert.alert(t("me.updateReady"), t("me.updateReadySub"), [
+        { text: t("me.restart"), onPress: () => Updates.reloadAsync() },
+      ]);
     } catch (e: any) {
-      Alert.alert("Couldn't check", e?.message ?? "Try again later.");
+      Alert.alert(t("me.couldntCheck"), e?.message ?? t("common.tryAgain"));
     }
   }
 
   function confirmDeleteAccount() {
-    Alert.alert(
-      "Delete your account?",
-      "This is permanent. Your account, friendships, broadcasts, and any places you added will be removed. Landmarks you contributed stay in the catalogue (no creator credit).",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete account",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteMyAccount();
-              // signOut state propagates automatically via the session
-              // context's onAuthStateChange listener, so we don't need
-              // to navigate manually.
-            } catch (e: any) {
-              Alert.alert("Couldn't delete", e?.message ?? "Try again.");
-            }
-          },
+    Alert.alert(t("me.deleteTitle"), t("me.deleteSub"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("me.deleteAccount"),
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteMyAccount();
+            // signOut state propagates automatically via the session
+            // context's onAuthStateChange listener, so we don't need
+            // to navigate manually.
+          } catch (e: any) {
+            Alert.alert(t("me.couldntDelete"), e?.message ?? t("common.tryAgain"));
+          }
         },
-      ]
-    );
+      },
+    ]);
   }
 
   return (
@@ -111,7 +102,7 @@ export function MeScreen() {
             </View>
           )}
           <View style={{ flex: 1 }}>
-            <Text style={styles.title}>{family?.name ?? "Your account"}</Text>
+            <Text style={styles.title}>{family?.name ?? t("me.account")}</Text>
             <Text style={styles.sub}>
               {user?.display_name} · @{user?.username}
             </Text>
@@ -124,7 +115,7 @@ export function MeScreen() {
           style={styles.editBtn}
           onPress={() => nav.navigate("EditProfile")}
         >
-          <Text style={styles.editBtnText}>✏️ Edit profile</Text>
+          <Text style={styles.editBtnText}>{t("me.editProfile")}</Text>
         </TouchableOpacity>
 
         <View style={styles.card}>
@@ -132,40 +123,43 @@ export function MeScreen() {
             style={styles.rowTap}
             onPress={() => nav.navigate("EditNeighborhood")}
           >
-            <Text style={styles.rowLabel}>Neighborhood</Text>
+            <Text style={styles.rowLabel}>{t("me.neighborhood")}</Text>
             <Text style={styles.rowValueLink}>{family?.zip ?? "—"} ›</Text>
           </TouchableOpacity>
-          <Row label="Username" value={`@${user?.username ?? "—"}`} />
+          <Row label={t("me.username")} value={`@${user?.username ?? "—"}`} />
         </View>
 
+        <Text style={styles.sectionLabel}>{t("me.language")}</Text>
+        <LanguagePicker />
+
         <Button
-          title="⚡ Check for updates"
+          title={t("me.checkUpdates")}
           variant="secondary"
           onPress={checkForUpdates}
           style={{ marginTop: SPACING.xl }}
         />
 
         <Button
-          title="🔔 Test push setup"
+          title={t("me.testPush")}
           variant="secondary"
           onPress={testPushSetup}
           style={{ marginTop: SPACING.md }}
         />
 
         <Button
-          title="Sign out"
+          title={t("me.signOut")}
           variant="secondary"
           onPress={() =>
-            Alert.alert("Sign out?", "", [
-              { text: "Cancel", style: "cancel" },
-              { text: "Sign out", style: "destructive", onPress: signOut },
+            Alert.alert(t("me.signOutConfirm"), "", [
+              { text: t("common.cancel"), style: "cancel" },
+              { text: t("me.signOut"), style: "destructive", onPress: signOut },
             ])
           }
           style={{ marginTop: SPACING.md }}
         />
 
         <TouchableOpacity onPress={confirmDeleteAccount} style={styles.dangerLink}>
-          <Text style={styles.dangerLinkText}>Delete account</Text>
+          <Text style={styles.dangerLinkText}>{t("me.deleteAccount")}</Text>
         </TouchableOpacity>
 
         <Text style={styles.version}>
@@ -256,4 +250,13 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   editBtnText: { color: COLORS.textPrimary, fontWeight: "700" },
+  sectionLabel: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: "700",
+    color: COLORS.textSecondary,
+    marginTop: SPACING.xl,
+    marginBottom: SPACING.sm,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
 });

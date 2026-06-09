@@ -11,10 +11,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
+import { LanguagePicker } from "@/components/LanguagePicker";
 import { sendEmailOtp, verifyEmailOtp } from "@/services/auth";
+import { useT } from "@/i18n";
 import { COLORS, FONT_SIZE, RADIUS, SPACING } from "@/utils/theme";
 
 export function SignInScreen() {
+  const t = useT();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [stage, setStage] = useState<"email" | "code">("email");
@@ -37,7 +40,7 @@ export function SignInScreen() {
       await verifyEmailOtp(email.trim().toLowerCase(), code.trim());
       // SessionContext will pick up the new session automatically.
     } catch (e: any) {
-      Alert.alert("Invalid code", e.message ?? "Check your email and try again.");
+      Alert.alert(t("signin.invalidCode"), e.message ?? t("signin.checkEmail"));
     } finally {
       setLoading(false);
     }
@@ -56,13 +59,13 @@ export function SignInScreen() {
         >
           <Text style={styles.logo}>🌤️</Text>
           <Text style={styles.title}>Outside</Text>
-          <Text style={styles.tagline}>See where friends are headed.</Text>
+          <Text style={styles.tagline}>{t("signin.tagline")}</Text>
 
           {stage === "email" ? (
             <>
               <TextInput
                 style={styles.input}
-                placeholder="you@email.com"
+                placeholder={t("signin.emailPlaceholder")}
                 placeholderTextColor={COLORS.textTertiary}
                 value={email}
                 onChangeText={setEmail}
@@ -71,17 +74,20 @@ export function SignInScreen() {
                 autoComplete="email"
               />
               <Button
-                title="Send me a code"
+                title={t("signin.sendCode")}
                 onPress={requestCode}
                 loading={loading}
                 disabled={!email.includes("@")}
                 style={{ marginTop: SPACING.md }}
               />
+              <View style={{ marginTop: SPACING.xl }}>
+                <LanguagePicker />
+              </View>
             </>
           ) : (
             <>
-              <Text style={styles.hint}>We sent a 6-digit code to {email}.</Text>
-              <Text style={styles.devHint}>Dev: code 123456 works for any email.</Text>
+              <Text style={styles.hint}>{t("signin.codeSentTo", { email })}</Text>
+              <Text style={styles.devHint}>{t("signin.devHint")}</Text>
               <TextInput
                 style={[styles.input, styles.codeInput]}
                 placeholder="123456"
@@ -92,14 +98,14 @@ export function SignInScreen() {
                 maxLength={6}
               />
               <Button
-                title="Verify"
+                title={t("signin.verify")}
                 onPress={submitCode}
                 loading={loading}
                 disabled={code.length < 6}
                 style={{ marginTop: SPACING.md }}
               />
               <Button
-                title="Use a different email"
+                title={t("signin.differentEmail")}
                 variant="ghost"
                 onPress={() => {
                   setStage("email");

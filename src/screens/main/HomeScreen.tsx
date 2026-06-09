@@ -20,6 +20,7 @@ import {
   unfavoriteLandmark,
 } from "@/services/favorites";
 import { Landmark, BroadcastFeedItem, RootStackParamList } from "@/types";
+import { useT } from "@/i18n";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 import { formatWhen } from "@/utils/format";
 
@@ -28,6 +29,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 export function HomeScreen() {
   const nav = useNavigation<Nav>();
   const { family } = useSession();
+  const t = useT();
 
   const [landmarks, setLandmarks] = useState<Landmark[]>([]);
   const [feed, setFeed] = useState<BroadcastFeedItem[]>([]);
@@ -135,11 +137,15 @@ export function HomeScreen() {
         }
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={styles.hello}>Hi, {family?.name ?? "there"} 👋</Text>
+            <Text style={styles.hello}>
+              {t("home.greeting", { name: family?.name ?? "👋" })}
+            </Text>
             <Text style={styles.hero}>
               {activeCount > 0
-                ? `${activeCount} friend ${activeCount === 1 ? "family is" : "families are"} out right now.`
-                : "No friends are out yet — be the first?"}
+                ? t(activeCount === 1 ? "home.outOne" : "home.outMany", {
+                    count: activeCount,
+                  })
+                : t("home.outNone")}
             </Text>
             <TouchableOpacity
               style={styles.addRow}
@@ -147,7 +153,7 @@ export function HomeScreen() {
               activeOpacity={0.8}
             >
               <Text style={styles.addPlus}>＋</Text>
-              <Text style={styles.addText}>Add a place you love</Text>
+              <Text style={styles.addText}>{t("home.addPlace")}</Text>
             </TouchableOpacity>
           </View>
         }
@@ -171,8 +177,8 @@ export function HomeScreen() {
                         .map((b) => `${b.family_name} · ${formatWhen(new Date(b.planned_at))}`)
                         .join(" • ") + (active.length > 2 ? ` • +${active.length - 2}` : "")
                     : subscribed
-                      ? "Subscribed · you'll get notified"
-                      : "Tap to view or broadcast"}
+                      ? t("home.cardSubscribed")
+                      : t("home.cardTap")}
                 </Text>
               </View>
               {active.length > 0 && <View style={styles.livePip} />}

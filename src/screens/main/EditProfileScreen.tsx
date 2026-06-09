@@ -20,11 +20,13 @@ import {
   pickAndUploadAvatar,
   updateFamilyProfile,
 } from "@/services/profile";
+import { useT } from "@/i18n";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 
 export function EditProfileScreen() {
   const nav = useNavigation();
   const { family, refreshProfile } = useSession();
+  const t = useT();
 
   const [name, setName] = useState(family?.name ?? "");
   const [bio, setBio] = useState(family?.bio ?? "");
@@ -48,7 +50,7 @@ export function EditProfileScreen() {
       setAvatarUrl(url);
     } catch (e: any) {
       if (e?.message !== "Cancelled") {
-        Alert.alert("Upload failed", e?.message ?? "Try again.");
+        Alert.alert(t("ep.uploadFailed"), e?.message ?? t("common.tryAgain"));
       }
     } finally {
       setUploading(false);
@@ -66,7 +68,7 @@ export function EditProfileScreen() {
       await refreshProfile();
       nav.goBack();
     } catch (e: any) {
-      Alert.alert("Couldn't save", e?.message ?? "Try again.");
+      Alert.alert(t("ep.couldntSave"), e?.message ?? t("common.tryAgain"));
     } finally {
       setSaving(false);
     }
@@ -81,12 +83,12 @@ export function EditProfileScreen() {
       >
         <View style={styles.topBar}>
           <TouchableOpacity onPress={() => nav.goBack()}>
-            <Text style={styles.back}>Cancel</Text>
+            <Text style={styles.back}>{t("common.cancel")}</Text>
           </TouchableOpacity>
         </View>
 
         <ScrollView contentContainerStyle={styles.body}>
-          <Text style={styles.title}>Edit profile</Text>
+          <Text style={styles.title}>{t("ep.title")}</Text>
 
           <View style={styles.avatarWrap}>
             {avatarUrl ? (
@@ -107,28 +109,28 @@ export function EditProfileScreen() {
                 <ActivityIndicator color={COLORS.accent} />
               ) : (
                 <Text style={styles.avatarBtnText}>
-                  {avatarUrl ? "Change photo" : "Add photo"}
+                  {avatarUrl ? t("ep.changePhoto") : t("ep.addPhoto")}
                 </Text>
               )}
             </TouchableOpacity>
           </View>
 
-          <Label>Display name (or group name)</Label>
+          <Label>{t("ep.nameLabel")}</Label>
           <TextInput
             style={styles.input}
             value={name}
             onChangeText={setName}
-            placeholder="Jess or The Chens"
+            placeholder={t("ep.namePlaceholder")}
             placeholderTextColor={COLORS.textTertiary}
             maxLength={40}
           />
 
-          <Label>Short bio</Label>
+          <Label>{t("ep.bioLabel")}</Label>
           <TextInput
             style={[styles.input, styles.inputMulti]}
             value={bio}
             onChangeText={setBio}
-            placeholder="Two kids, weekends at Mauerpark, mostly looking for cafés that don't mind crayon."
+            placeholder={t("ep.bioPlaceholder")}
             placeholderTextColor={COLORS.textTertiary}
             maxLength={280}
             multiline
@@ -136,7 +138,7 @@ export function EditProfileScreen() {
           <Text style={styles.hint}>{bio.length}/280</Text>
 
           <Button
-            title="Save"
+            title={t("common.save")}
             onPress={onSave}
             loading={saving}
             disabled={saving}

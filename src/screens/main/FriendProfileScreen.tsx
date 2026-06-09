@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { getFamilyById, getFamilyActivity } from "@/services/profile";
 import { removeFriendship } from "@/services/friends";
+import { useT } from "@/i18n";
 import { Family, RootStackParamList } from "@/types";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 
@@ -22,6 +23,7 @@ export function FriendProfileScreen() {
   const nav = useNavigation();
   const route = useRoute<Route>();
   const { familyId } = route.params;
+  const t = useT();
 
   const [family, setFamily] = useState<Family | null>(null);
   const [activity, setActivity] = useState<{
@@ -47,19 +49,19 @@ export function FriendProfileScreen() {
   function confirmRemove() {
     if (!family) return;
     Alert.alert(
-      `Remove ${family.name}?`,
-      "They'll stop seeing your broadcasts.",
+      t("friends.removeTitle", { name: family.name }),
+      t("friends.removeSub"),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t("common.cancel"), style: "cancel" },
         {
-          text: "Remove",
+          text: t("friends.remove"),
           style: "destructive",
           onPress: async () => {
             try {
               await removeFriendship(family.id);
               nav.goBack();
             } catch (e: any) {
-              Alert.alert("Couldn't remove", e?.message ?? "Try again.");
+              Alert.alert(t("fp.couldntRemove"), e?.message ?? t("common.tryAgain"));
             }
           },
         },
@@ -80,10 +82,10 @@ export function FriendProfileScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.topBar}>
           <TouchableOpacity onPress={() => nav.goBack()}>
-            <Text style={styles.back}>← Back</Text>
+            <Text style={styles.back}>{t("common.back")}</Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.notFound}>Profile not found.</Text>
+        <Text style={styles.notFound}>{t("fp.notFound")}</Text>
       </SafeAreaView>
     );
   }
@@ -93,7 +95,7 @@ export function FriendProfileScreen() {
       <ScrollView>
         <View style={styles.topBar}>
           <TouchableOpacity onPress={() => nav.goBack()}>
-            <Text style={styles.back}>← Back</Text>
+            <Text style={styles.back}>{t("common.back")}</Text>
           </TouchableOpacity>
         </View>
 
@@ -115,16 +117,16 @@ export function FriendProfileScreen() {
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{activity?.activeBroadcasts ?? 0}</Text>
-            <Text style={styles.statLabel}>Active broadcasts</Text>
+            <Text style={styles.statLabel}>{t("fp.activeBroadcasts")}</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{activity?.landmarksContributed ?? 0}</Text>
-            <Text style={styles.statLabel}>Places added</Text>
+            <Text style={styles.statLabel}>{t("fp.placesAdded")}</Text>
           </View>
         </View>
 
         <TouchableOpacity onPress={confirmRemove} style={styles.removeBtn}>
-          <Text style={styles.removeBtnText}>Remove friend</Text>
+          <Text style={styles.removeBtnText}>{t("fp.removeFriend")}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

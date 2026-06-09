@@ -17,6 +17,7 @@ import { Landmark, RootStackParamList } from "@/types";
 import { getLandmarkById } from "@/services/landmarks";
 import { createBroadcast } from "@/services/broadcasts";
 import { useSession } from "@/contexts/SessionContext";
+import { useT, TranslationKey } from "@/i18n";
 import { supabase } from "@/config/supabase";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 
@@ -24,11 +25,11 @@ type Nav = NativeStackNavigationProp<RootStackParamList, "BroadcastCompose">;
 type Route = RouteProp<RootStackParamList, "BroadcastCompose">;
 
 // Simple relative-time chips rather than a full picker — 1 tap = broadcast.
-const TIME_OPTIONS = [
-  { label: "Now", minutes: 0 },
-  { label: "In 15 min", minutes: 15 },
-  { label: "In 30 min", minutes: 30 },
-  { label: "In 1 hr", minutes: 60 },
+const TIME_OPTIONS: { labelKey: TranslationKey; minutes: number }[] = [
+  { labelKey: "bc.now", minutes: 0 },
+  { labelKey: "bc.in15", minutes: 15 },
+  { labelKey: "bc.in30", minutes: 30 },
+  { labelKey: "bc.in1h", minutes: 60 },
 ];
 
 export function BroadcastComposeScreen() {
@@ -36,6 +37,7 @@ export function BroadcastComposeScreen() {
   const route = useRoute<Route>();
   const { landmarkId } = route.params;
   const { family } = useSession();
+  const t = useT();
 
   const [landmark, setLandmark] = useState<Landmark | null>(null);
   const [minutesFromNow, setMinutesFromNow] = useState(0);
@@ -70,12 +72,9 @@ export function BroadcastComposeScreen() {
     } catch (e: any) {
       const msg = (e?.message ?? "").toLowerCase();
       if (msg.includes("already broadcasting")) {
-        Alert.alert(
-          "You're already broadcasting",
-          "End or update your current broadcast before starting a new one. Open the landmark you're broadcasting at to manage it."
-        );
+        Alert.alert(t("bc.alreadyTitle"), t("bc.alreadySub"));
       } else {
-        Alert.alert("Couldn't post", e?.message ?? "Try again.");
+        Alert.alert(t("bc.couldntPost"), e?.message ?? t("common.tryAgain"));
       }
       setPosting(false);
     }
@@ -90,14 +89,14 @@ export function BroadcastComposeScreen() {
       >
         <View style={styles.topBar}>
           <TouchableOpacity onPress={() => nav.goBack()}>
-            <Text style={styles.back}>Cancel</Text>
+            <Text style={styles.back}>{t("common.cancel")}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.body}>
           <Text style={styles.spotEmoji}>{landmark?.emoji ?? "📍"}</Text>
-          <Text style={styles.spotName}>{landmark?.name ?? "Loading…"}</Text>
-          <Text style={styles.sub}>When are you headed?</Text>
+          <Text style={styles.spotName}>{landmark?.name ?? "…"}</Text>
+          <Text style={styles.sub}>{t("bc.when")}</Text>
 
           <View style={styles.chips}>
             {TIME_OPTIONS.map((opt) => (
@@ -112,18 +111,16 @@ export function BroadcastComposeScreen() {
                     minutesFromNow === opt.minutes && styles.chipTextActive,
                   ]}
                 >
-                  {opt.label}
+                  {t(opt.labelKey)}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          <Text style={[styles.sub, { marginTop: SPACING.xl }]}>
-            Optional note (max 80 chars)
-          </Text>
+          <Text style={[styles.sub, { marginTop: SPACING.xl }]}>{t("bc.noteLabel")}</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g. bringing scooters, come play!"
+            placeholder={t("bc.notePlaceholder")}
             placeholderTextColor={COLORS.textTertiary}
             value={message}
             onChangeText={setMessage}
@@ -133,7 +130,7 @@ export function BroadcastComposeScreen() {
         </View>
 
         <View style={styles.footer}>
-          <Button title="Broadcast" onPress={broadcast} loading={posting} />
+          <Button title={t("bc.broadcast")} onPress={broadcast} loading={posting} />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
