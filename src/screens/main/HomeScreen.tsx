@@ -13,7 +13,7 @@ import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSession } from "@/contexts/SessionContext";
 import { getLandmarksByZip, getSubscribedLandmarkIds } from "@/services/landmarks";
-import { getActiveFeed } from "@/services/broadcasts";
+import { getActiveFeed, getRsvpsForBroadcast } from "@/services/broadcasts";
 import {
   favoriteLandmark,
   getFavoriteLandmarkIds,
@@ -35,23 +35,38 @@ export function HomeScreen() {
   const [feed, setFeed] = useState<BroadcastFeedItem[]>([]);
   const [subs, setSubs] = useState<Set<string>>(new Set());
   const [favs, setFavs] = useState<Set<string>>(new Set());
+  const [joiningCount, setJoiningCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!family) return;
-    const [lms, fd, sb, fv] = await Promise.all([
-      getLandmarksByZip(family.zip),
-      getActiveFeed(),
-      getSubscribedLandmarkIds(family.id),
-      getFavoriteLandmarkIds(family.id),
-    ]);
-    setLandmarks(lms);
-    setFeed(fd);
-    setSubs(sb);
-    setFavs(fv);
-    setLoading(false);
-    setRefreshing(false);
+    try {
+      const [lms, fd, sb, fv] = await Promise.all([
+        getLandmarksByZip(family.zip),
+        getActiveFeed(),
+        getSubscribedLandmarkIds(family.id),
+        getFavoriteLandmarkIds(family.id),
+      ]);
+      setLandmarks(lms);
+      setFeed(fd);
+      setSubs(sb);
+      setFavs(fv);
+
+      // How many friends have RSVPed "coming" to MY active broadcast(s)?
+      const mine = fd.filter((b) => b.family_id === family.id);
+      let joining = 0;
+      if (mine.length) {
+        const rs = await Promise.all(mine.map((b) => getRsvpsForBroadcast(b.id)));
+        joining = rs
+          .flat()
+          .filter((r) => r.status === "coming" && r.family_id !== family.id).length;
+      }
+      setJoiningCount(joining);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, [family]);
 
   async function toggleFavorite(landmarkId: string) {
@@ -109,7 +124,16 @@ export function HomeScreen() {
     });
   }, [landmarks, broadcastsByLandmark, subs, favs]);
 
-  const activeCount = feed.length;
+  // Split my own broadcasts from friends' so the hero never counts ME as
+  // "a friend who's out".
+  const amBroadcasting = useMemo(
+    () => feed.some((b) => b.family_id === family?.id),
+    [feed, family?.id]
+  );
+  const friendsOutCount = useMemo(
+    () => new Set(feed.filter((b) => b.family_id !== family?.id).map((b) => b.family_id)).size,
+    [feed, family?.id]
+  );
 
   if (loading) {
     return (
@@ -141,11 +165,24 @@ export function HomeScreen() {
               {t("home.greeting", { name: family?.name ?? "👋" })}
             </Text>
             <Text style={styles.hero}>
-              {activeCount > 0
-                ? t(activeCount === 1 ? "home.outOne" : "home.outMany", {
-                    count: activeCount,
-                  })
-                : t("home.outNone")}
+              {amBroadcasting ? (
+                joiningCount > 0 ? (
+                  <>
+                    {t("home.youreOutPrefix")}{" "}
+                    <Text style={styles.heroNum}>{joiningCount}</Text>{" "}
+                    {t(joiningCount === 1 ? "home.joiningSuffixOne" : "home.joiningSuffixMany")}
+                  </>
+                ) : (
+                  t("home.youreOutNoneJoined")
+                )
+              ) : friendsOutCount > 0 ? (
+                <>
+                  <Text style={styles.heroNum}>{friendsOutCount}</Text>{" "}
+                  {t(friendsOutCount === 1 ? "home.friendsOutSuffixOne" : "home.friendsOutSuffixMany")}
+                </>
+              ) : (
+                t("home.outNone")
+              )}
             </Text>
             <TouchableOpacity
               style={styles.addRow}
@@ -211,6 +248,8 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     marginTop: SPACING.xs,
   },
+  // The changing numbers in the hero get the accent colour.
+  heroNum: { color: COLORS.accent },
   card: {
     flexDirection: "row",
     alignItems: "center",

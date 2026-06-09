@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, Alert, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { Button } from "@/components/Button";
+import { showDialog } from "@/components/dialog";
 import { ZipPicker } from "@/components/ZipPicker";
 import { supabase } from "@/config/supabase";
 import { useSession } from "@/contexts/SessionContext";
@@ -24,7 +25,7 @@ export function EditNeighborhoodScreen() {
       .eq("id", family.id);
     setSaving(false);
     if (error) {
-      Alert.alert("Couldn't update", error.message);
+      showDialog("Couldn't update", error.message);
       return;
     }
     await refreshProfile();

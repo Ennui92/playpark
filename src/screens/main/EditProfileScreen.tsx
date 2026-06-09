@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Alert,
   ScrollView,
   Image,
   ActivityIndicator,
@@ -15,6 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { Button } from "@/components/Button";
+import { showDialog } from "@/components/dialog";
 import { useSession } from "@/contexts/SessionContext";
 import {
   pickAndUploadAvatar,
@@ -50,7 +50,7 @@ export function EditProfileScreen() {
       setAvatarUrl(url);
     } catch (e: any) {
       if (e?.message !== "Cancelled") {
-        Alert.alert(t("ep.uploadFailed"), e?.message ?? t("common.tryAgain"));
+        showDialog(t("ep.uploadFailed"), e?.message ?? t("common.tryAgain"));
       }
     } finally {
       setUploading(false);
@@ -68,7 +68,7 @@ export function EditProfileScreen() {
       await refreshProfile();
       nav.goBack();
     } catch (e: any) {
-      Alert.alert(t("ep.couldntSave"), e?.message ?? t("common.tryAgain"));
+      showDialog(t("ep.couldntSave"), e?.message ?? t("common.tryAgain"));
     } finally {
       setSaving(false);
     }

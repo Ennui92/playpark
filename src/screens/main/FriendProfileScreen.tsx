@@ -7,12 +7,12 @@ import {
   Image,
   ActivityIndicator,
   TouchableOpacity,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { getFamilyById, getFamilyActivity } from "@/services/profile";
 import { removeFriendship } from "@/services/friends";
+import { showDialog } from "@/components/dialog";
 import { useT } from "@/i18n";
 import { Family, RootStackParamList } from "@/types";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
@@ -48,7 +48,7 @@ export function FriendProfileScreen() {
 
   function confirmRemove() {
     if (!family) return;
-    Alert.alert(
+    showDialog(
       t("friends.removeTitle", { name: family.name }),
       t("friends.removeSub"),
       [
@@ -61,7 +61,7 @@ export function FriendProfileScreen() {
               await removeFriendship(family.id);
               nav.goBack();
             } catch (e: any) {
-              Alert.alert(t("fp.couldntRemove"), e?.message ?? t("common.tryAgain"));
+              showDialog(t("fp.couldntRemove"), e?.message ?? t("common.tryAgain"));
             }
           },
         },

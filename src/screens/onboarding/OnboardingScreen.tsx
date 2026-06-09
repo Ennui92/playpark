@@ -5,12 +5,12 @@ import {
   TextInput,
   StyleSheet,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
+import { showDialog } from "@/components/dialog";
 import { ZipPicker } from "@/components/ZipPicker";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { completeSignup } from "@/services/auth";
@@ -58,9 +58,9 @@ export function OnboardingScreen() {
     } catch (e: any) {
       const msg = e.message ?? "";
       if (msg.includes("duplicate") || msg.includes("unique")) {
-        Alert.alert(t("onb.usernameTaken"), t("onb.usernameTakenSub"));
+        showDialog(t("onb.usernameTaken"), t("onb.usernameTakenSub"));
       } else {
-        Alert.alert(t("common.somethingWrong"), msg || t("common.tryAgain"));
+        showDialog(t("common.somethingWrong"), msg || t("common.tryAgain"));
       }
     } finally {
       setSaving(false);

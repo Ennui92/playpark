@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
@@ -13,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Button } from "@/components/Button";
+import { showDialog } from "@/components/dialog";
 import { Landmark, RootStackParamList } from "@/types";
 import { getLandmarkById } from "@/services/landmarks";
 import { createBroadcast } from "@/services/broadcasts";
@@ -72,9 +72,9 @@ export function BroadcastComposeScreen() {
     } catch (e: any) {
       const msg = (e?.message ?? "").toLowerCase();
       if (msg.includes("already broadcasting")) {
-        Alert.alert(t("bc.alreadyTitle"), t("bc.alreadySub"));
+        showDialog(t("bc.alreadyTitle"), t("bc.alreadySub"));
       } else {
-        Alert.alert(t("bc.couldntPost"), e?.message ?? t("common.tryAgain"));
+        showDialog(t("bc.couldntPost"), e?.message ?? t("common.tryAgain"));
       }
       setPosting(false);
     }

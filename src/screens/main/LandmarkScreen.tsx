@@ -22,7 +22,7 @@ import {
   updateUserLandmark,
   deleteUserLandmark,
 } from "@/services/landmarks";
-import { Alert } from "react-native";
+import { showDialog } from "@/components/dialog";
 import {
   getActiveBroadcastsForLandmark,
   setBroadcastRsvp,
@@ -74,7 +74,7 @@ export function LandmarkScreen() {
     try {
       await updateUserLandmark(landmark.id, { lat, lng });
     } catch (e: any) {
-      Alert.alert(t("lm.couldntSavePin"), e.message ?? t("common.tryAgain"));
+      showDialog(t("lm.couldntSavePin"), e.message ?? t("common.tryAgain"));
       // Reload to get the true server state if we lost the race.
       load();
     }
@@ -82,7 +82,7 @@ export function LandmarkScreen() {
 
   function confirmDelete() {
     if (!landmark) return;
-    Alert.alert(
+    showDialog(
       t("lm.deleteTitle", { name: landmark.name }),
       t("lm.deleteSub"),
       [
@@ -95,7 +95,7 @@ export function LandmarkScreen() {
               await deleteUserLandmark(landmark.id);
               nav.goBack();
             } catch (e: any) {
-              Alert.alert(t("lm.couldntDelete"), e.message ?? t("common.tryAgain"));
+              showDialog(t("lm.couldntDelete"), e.message ?? t("common.tryAgain"));
             }
           },
         },
@@ -124,7 +124,7 @@ export function LandmarkScreen() {
       setRsvpsByBroadcast(Object.fromEntries(rsvpResults));
     } catch (e: any) {
       // Surface instead of spinning forever (e.g. timed-out request).
-      Alert.alert(t("common.somethingWrong"), e?.message ?? t("common.tryAgain"));
+      showDialog(t("common.somethingWrong"), e?.message ?? t("common.tryAgain"));
     } finally {
       // Always stop the spinner, success or failure.
       setLoading(false);
@@ -151,17 +151,17 @@ export function LandmarkScreen() {
       } else {
         await updateBroadcastMessage(broadcastId, message);
       }
-      Alert.alert(t("lm.sent"), t("lm.sentSub"));
+      showDialog(t("lm.sent"), t("lm.sentSub"));
       await load();
     } catch (e: any) {
-      Alert.alert(t("lm.couldntSend"), e?.message ?? t("common.tryAgain"));
+      showDialog(t("lm.couldntSend"), e?.message ?? t("common.tryAgain"));
     } finally {
       setUpdatingBroadcast(false);
     }
   }
 
   async function onEndBroadcast(broadcastId: string) {
-    Alert.alert(t("lm.endTitle"), t("lm.endSub"), [
+    showDialog(t("lm.endTitle"), t("lm.endSub"), [
       { text: t("common.cancel"), style: "cancel" },
       {
         text: t("lm.end"),
@@ -172,7 +172,7 @@ export function LandmarkScreen() {
             await endBroadcast(broadcastId);
             await load();
           } catch (e: any) {
-            Alert.alert(t("lm.couldntEnd"), e?.message ?? t("common.tryAgain"));
+            showDialog(t("lm.couldntEnd"), e?.message ?? t("common.tryAgain"));
           } finally {
             setUpdatingBroadcast(false);
           }
@@ -202,7 +202,7 @@ export function LandmarkScreen() {
     try {
       await setBroadcastRsvp(broadcastId, status);
     } catch (e: any) {
-      Alert.alert(t("lm.rsvpCouldnt"), e?.message ?? t("common.tryAgain"));
+      showDialog(t("lm.rsvpCouldnt"), e?.message ?? t("common.tryAgain"));
       await load();
     }
   }
@@ -551,11 +551,11 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
     borderRadius: RADIUS.full,
-    backgroundColor: COLORS.accentLight,
+    backgroundColor: COLORS.surfaceAlt,
     borderWidth: 1,
-    borderColor: COLORS.accent,
+    borderColor: COLORS.border,
   },
-  statusChipText: { color: COLORS.accent, fontWeight: "700", fontSize: FONT_SIZE.sm },
+  statusChipText: { color: COLORS.textPrimary, fontWeight: "700", fontSize: FONT_SIZE.sm },
   endBtn: {
     paddingVertical: SPACING.sm,
     alignItems: "center",

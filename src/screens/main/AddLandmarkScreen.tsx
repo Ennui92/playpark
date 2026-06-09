@@ -5,7 +5,6 @@ import {
   TextInput,
   StyleSheet,
   ScrollView,
-  Alert,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
@@ -14,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import * as Location from "expo-location";
 import { Button } from "@/components/Button";
+import { showDialog } from "@/components/dialog";
 import { createUserLandmark } from "@/services/landmarks";
 import { useSession } from "@/contexts/SessionContext";
 import { useT, TranslationKey } from "@/i18n";
@@ -56,7 +56,7 @@ export function AddLandmarkScreen() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert(t("add.permNeeded"), t("add.permSub"));
+        showDialog(t("add.permNeeded"), t("add.permSub"));
         setLocating(false);
         return;
       }
@@ -81,10 +81,10 @@ export function AddLandmarkScreen() {
           .then((g) => setGeo(g))
           .catch(() => {});
       } else {
-        Alert.alert(t("add.noFix"), t("add.noFixSub"));
+        showDialog(t("add.noFix"), t("add.noFixSub"));
       }
     } catch (e: any) {
-      Alert.alert(t("add.couldntLocate"), e.message ?? t("common.tryAgain"));
+      showDialog(t("add.couldntLocate"), e.message ?? t("common.tryAgain"));
     } finally {
       setLocating(false);
     }
@@ -115,11 +115,11 @@ export function AddLandmarkScreen() {
         lat: coords.lat,
         lng: coords.lng,
       });
-      Alert.alert(t("add.added"), t("add.addedSub", { name: lm.name }), [
+      showDialog(t("add.added"), t("add.addedSub", { name: lm.name }), [
         { text: t("add.nice"), onPress: () => nav.goBack() },
       ]);
     } catch (e: any) {
-      Alert.alert(t("add.couldntAdd"), e.message ?? t("common.tryAgain"));
+      showDialog(t("add.couldntAdd"), e.message ?? t("common.tryAgain"));
     } finally {
       setSaving(false);
     }

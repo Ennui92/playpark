@@ -6,7 +6,6 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
-  Alert,
   RefreshControl,
   Share,
   Platform,
@@ -17,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Button } from "@/components/Button";
+import { showDialog } from "@/components/dialog";
 import {
   addFriendViaUsername,
   getFriendFamilies,
@@ -67,10 +67,10 @@ export function FriendsScreen() {
     try {
       await addFriendViaUsername(u);
       setUsername("");
-      Alert.alert(t("friends.requestSent"), t("friends.requestSentSub", { username: u }));
+      showDialog(t("friends.requestSent"), t("friends.requestSentSub", { username: u }));
       await load();
     } catch (e: any) {
-      Alert.alert(t("friends.couldntAdd"), e.message ?? t("common.tryAgain"));
+      showDialog(t("friends.couldntAdd"), e.message ?? t("common.tryAgain"));
     } finally {
       setAdding(false);
     }
@@ -83,7 +83,7 @@ export function FriendsScreen() {
       await acceptFriendRequest(reqId);
       await load();
     } catch (e: any) {
-      Alert.alert(t("friends.couldntAccept"), e.message ?? t("common.tryAgain"));
+      showDialog(t("friends.couldntAccept"), e.message ?? t("common.tryAgain"));
       await load();
     }
   }
@@ -94,7 +94,7 @@ export function FriendsScreen() {
       await declineFriendRequest(reqId);
       await refreshBadges?.();
     } catch (e: any) {
-      Alert.alert(t("friends.couldntDecline"), e.message ?? t("common.tryAgain"));
+      showDialog(t("friends.couldntDecline"), e.message ?? t("common.tryAgain"));
       await load();
     }
   }
@@ -102,7 +102,7 @@ export function FriendsScreen() {
   async function copyUsername() {
     if (!user) return;
     await Clipboard.setStringAsync(`@${user.username}`);
-    Alert.alert(t("friends.copied"), t("friends.copiedSub", { username: user.username }));
+    showDialog(t("friends.copied"), t("friends.copiedSub", { username: user.username }));
   }
 
   async function shareUsername() {
@@ -120,7 +120,7 @@ export function FriendsScreen() {
   }
 
   function confirmRemove(f: Family) {
-    Alert.alert(t("friends.removeTitle", { name: f.name }), t("friends.removeSub"), [
+    showDialog(t("friends.removeTitle", { name: f.name }), t("friends.removeSub"), [
       { text: t("common.cancel"), style: "cancel" },
       {
         text: t("friends.remove"),

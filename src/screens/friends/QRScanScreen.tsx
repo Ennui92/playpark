@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, Alert, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useNavigation } from "@react-navigation/native";
 import { Button } from "@/components/Button";
+import { showDialog } from "@/components/dialog";
 import { addFriendViaQr } from "@/services/friends";
 import { COLORS, FONT_SIZE, RADIUS, SPACING } from "@/utils/theme";
 
@@ -19,11 +20,11 @@ export function QRScanScreen() {
     setAdding(true);
     try {
       await addFriendViaQr(data);
-      Alert.alert("Friends!", "You can now see each other's broadcasts.", [
+      showDialog("Friends!", "You can now see each other's broadcasts.", [
         { text: "Nice", onPress: () => nav.goBack() },
       ]);
     } catch (e: any) {
-      Alert.alert("Couldn't add", e.message ?? "Invalid code.", [
+      showDialog("Couldn't add", e.message ?? "Invalid code.", [
         { text: "Try again", onPress: () => setScanned(false) },
         { text: "Cancel", onPress: () => nav.goBack(), style: "cancel" },
       ]);

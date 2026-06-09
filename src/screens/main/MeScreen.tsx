@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, Image } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from "react-native";
+import { showDialog } from "@/components/dialog";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -39,9 +40,9 @@ export function MeScreen() {
     if (!user) return;
     try {
       const token = await registerForPushNotifications(user.id);
-      Alert.alert(t("me.pushOk"), `${token.slice(0, 40)}…\n\n${t("me.pushOkSub")}`);
+      showDialog(t("me.pushOk"), `${token.slice(0, 40)}…\n\n${t("me.pushOkSub")}`);
     } catch (e: any) {
-      Alert.alert(t("me.pushFailed"), e?.message ?? "Unknown error");
+      showDialog(t("me.pushFailed"), e?.message ?? "Unknown error");
     }
   }
 
@@ -50,26 +51,26 @@ export function MeScreen() {
   // every app start automatically; this is just a "force now" shortcut.
   async function checkForUpdates() {
     if (!Updates.isEnabled) {
-      Alert.alert(t("me.updatesDisabled"), t("me.updatesDisabledSub"));
+      showDialog(t("me.updatesDisabled"), t("me.updatesDisabledSub"));
       return;
     }
     try {
       const check = await Updates.checkForUpdateAsync();
       if (!check.isAvailable) {
-        Alert.alert(t("me.upToDate"), t("me.upToDateSub"));
+        showDialog(t("me.upToDate"), t("me.upToDateSub"));
         return;
       }
       await Updates.fetchUpdateAsync();
-      Alert.alert(t("me.updateReady"), t("me.updateReadySub"), [
+      showDialog(t("me.updateReady"), t("me.updateReadySub"), [
         { text: t("me.restart"), onPress: () => Updates.reloadAsync() },
       ]);
     } catch (e: any) {
-      Alert.alert(t("me.couldntCheck"), e?.message ?? t("common.tryAgain"));
+      showDialog(t("me.couldntCheck"), e?.message ?? t("common.tryAgain"));
     }
   }
 
   function confirmDeleteAccount() {
-    Alert.alert(t("me.deleteTitle"), t("me.deleteSub"), [
+    showDialog(t("me.deleteTitle"), t("me.deleteSub"), [
       { text: t("common.cancel"), style: "cancel" },
       {
         text: t("me.deleteAccount"),
@@ -81,7 +82,7 @@ export function MeScreen() {
             // context's onAuthStateChange listener, so we don't need
             // to navigate manually.
           } catch (e: any) {
-            Alert.alert(t("me.couldntDelete"), e?.message ?? t("common.tryAgain"));
+            showDialog(t("me.couldntDelete"), e?.message ?? t("common.tryAgain"));
           }
         },
       },
@@ -150,7 +151,7 @@ export function MeScreen() {
           title={t("me.signOut")}
           variant="secondary"
           onPress={() =>
-            Alert.alert(t("me.signOutConfirm"), "", [
+            showDialog(t("me.signOutConfirm"), "", [
               { text: t("common.cancel"), style: "cancel" },
               { text: t("me.signOut"), style: "destructive", onPress: signOut },
             ])

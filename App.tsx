@@ -7,6 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LanguageProvider } from "@/i18n";
 import { SessionProvider } from "@/contexts/SessionContext";
 import { RootNavigator } from "@/navigation";
+import { DialogHost } from "@/components/dialog";
 
 export default function App() {
   // Explicitly load the Ionicons font BEFORE rendering the navigator.
@@ -24,6 +25,8 @@ export default function App() {
           <SessionProvider>
             <StatusBar style="dark" />
             <RootNavigator />
+            {/* Mounted once; renders branded dialogs over everything. */}
+            <DialogHost />
           </SessionProvider>
         </LanguageProvider>
       </SafeAreaProvider>

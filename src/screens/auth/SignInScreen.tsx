@@ -6,11 +6,11 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
+import { showDialog } from "@/components/dialog";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { sendEmailOtp, verifyEmailOtp } from "@/services/auth";
 import { useT } from "@/i18n";
@@ -40,7 +40,7 @@ export function SignInScreen() {
       await verifyEmailOtp(email.trim().toLowerCase(), code.trim());
       // SessionContext will pick up the new session automatically.
     } catch (e: any) {
-      Alert.alert(t("signin.invalidCode"), e.message ?? t("signin.checkEmail"));
+      showDialog(t("signin.invalidCode"), e.message ?? t("signin.checkEmail"));
     } finally {
       setLoading(false);
     }
