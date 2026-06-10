@@ -7,12 +7,14 @@ import { showDialog } from "@/components/dialog";
 import { ZipPicker } from "@/components/ZipPicker";
 import { supabase } from "@/config/supabase";
 import { useSession } from "@/contexts/SessionContext";
+import { useT } from "@/i18n";
 import { BERLIN_ZIP_SET } from "@/data/berlinZips";
 import { COLORS, FONT_SIZE, SPACING } from "@/utils/theme";
 
 export function EditNeighborhoodScreen() {
   const nav = useNavigation();
   const { family, refreshProfile } = useSession();
+  const t = useT();
   const [zip, setZip] = useState(family?.zip ?? null);
   const [saving, setSaving] = useState(false);
 
@@ -25,7 +27,7 @@ export function EditNeighborhoodScreen() {
       .eq("id", family.id);
     setSaving(false);
     if (error) {
-      showDialog("Couldn't update", error.message);
+      showDialog(t("nb.couldntUpdate"), error.message);
       return;
     }
     await refreshProfile();
@@ -38,22 +40,20 @@ export function EditNeighborhoodScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => nav.goBack()}>
-          <Text style={styles.cancel}>Cancel</Text>
+          <Text style={styles.cancel}>{t("common.cancel")}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.body}>
-        <Text style={styles.title}>Change neighborhood</Text>
-        <Text style={styles.sub}>
-          Your Home list will switch to this PLZ.
-        </Text>
+        <Text style={styles.title}>{t("nb.title")}</Text>
+        <Text style={styles.sub}>{t("nb.sub")}</Text>
 
         <View style={{ marginTop: SPACING.lg }}>
           <ZipPicker value={zip} onChange={setZip} />
         </View>
 
         <Button
-          title="Save"
+          title={t("common.save")}
           onPress={save}
           loading={saving}
           disabled={!changed}

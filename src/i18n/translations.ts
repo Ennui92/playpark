@@ -233,6 +233,24 @@ export const en = {
   "map.satellite": "🛰 Satellite",
   "map.map": "🗺 Map",
   "map.dragHint": "Drag the pin or tap to move it",
+
+  // ─── QR scan ──────────────────────────────────────────────────────────────
+  "qr.friendsTitle": "Friends!",
+  "qr.friendsSub": "You can now see each other's broadcasts.",
+  "qr.nice": "Nice",
+  "qr.couldntAdd": "Couldn't add",
+  "qr.invalidCode": "Invalid code.",
+  "qr.tryAgainBtn": "Try again",
+  "qr.permTitle": "Camera permission needed",
+  "qr.permSub": "To scan a friend's QR code.",
+  "qr.grant": "Grant access",
+  "qr.close": "Close",
+  "qr.point": "Point at their QR code.",
+
+  // ─── Change neighbourhood ─────────────────────────────────────────────────
+  "nb.couldntUpdate": "Couldn't update",
+  "nb.title": "Change neighborhood",
+  "nb.sub": "Your Home list will switch to this PLZ.",
 } as const;
 
 export type TranslationKey = keyof typeof en;
@@ -447,6 +465,22 @@ export const de: Record<TranslationKey, string> = {
   "map.satellite": "🛰 Satellit",
   "map.map": "🗺 Karte",
   "map.dragHint": "Zieh den Pin oder tippe, um ihn zu verschieben",
+
+  "qr.friendsTitle": "Freunde!",
+  "qr.friendsSub": "Ihr seht jetzt gegenseitig eure Broadcasts.",
+  "qr.nice": "Super",
+  "qr.couldntAdd": "Konnte nicht hinzufügen",
+  "qr.invalidCode": "Ungültiger Code.",
+  "qr.tryAgainBtn": "Nochmal",
+  "qr.permTitle": "Kamerazugriff nötig",
+  "qr.permSub": "Um den QR-Code eines Freundes zu scannen.",
+  "qr.grant": "Zugriff erlauben",
+  "qr.close": "Schließen",
+  "qr.point": "Richte die Kamera auf den QR-Code.",
+
+  "nb.couldntUpdate": "Konnte nicht aktualisieren",
+  "nb.title": "Kiez ändern",
+  "nb.sub": "Deine Startseite wechselt zu dieser PLZ.",
 };
 
 export const LANGUAGES = [

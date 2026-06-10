@@ -9,6 +9,12 @@
   :root { --bg:#fffbf2; --ink:#1b1b1b; --muted:#555; --accent:#ff7a59; --accent-dark:#e85d3a; --card:#fff; }
   html,body { background:var(--bg); color:var(--ink); margin:0; padding:0; }
   body { font: 16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  /* Language toggle: show only the active language */
+  body.lang-en .de { display:none; }
+  body.lang-de .en { display:none; }
+  .langbar { position:absolute; top:16px; right:16px; font-size:14px; }
+  .langbar button { background:none; border:1px solid var(--accent); color:var(--accent); border-radius:999px; padding:4px 12px; margin-left:6px; cursor:pointer; font-weight:700; }
+  .langbar button.active { background:var(--accent); color:#fff; }
   .hero { text-align:center; padding: 72px 24px 40px; }
   .mark { width:88px; height:88px; border-radius:22px; background:var(--accent); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:52px; font-weight:800; }
   h1 { font-size: 40px; margin: 20px 0 8px; }
@@ -25,33 +31,79 @@
   footer a { color: var(--accent); margin: 0 8px; }
 </style>
 </head>
-<body>
+<body class="lang-en">
+  <div class="langbar">
+    <button id="btn-en" class="active" onclick="setLang('en')">EN</button>
+    <button id="btn-de" onclick="setLang('de')">DE</button>
+  </div>
+
   <div class="hero">
     <div class="mark">o</div>
     <h1>Outside</h1>
-    <p class="tag">The simple way to tell friends where you're headed in Berlin — and see who's coming.</p>
+    <p class="tag en">The simple way to tell friends where you're headed in Berlin — and see who's coming.</p>
+    <p class="tag de">Der einfache Weg, Freunden zu sagen, wohin du in Berlin unterwegs bist — und zu sehen, wer mitkommt.</p>
     <div>
       <!-- Replace # with the Play Store listing URL once published -->
-      <a class="cta" href="#">Get it on Google Play</a>
-      <a class="cta secondary" href="./support.html">Support</a>
+      <a class="cta en" href="#">Get it on Google Play</a>
+      <a class="cta de" href="#">Bei Google Play laden</a>
+      <a class="cta secondary en" href="./support.html">Support</a>
+      <a class="cta secondary de" href="./support.html">Hilfe</a>
     </div>
   </div>
 
   <main>
     <div class="grid">
-      <div class="card"><div class="emoji">🛝</div><h3>Pick a spot</h3><p>Search any place — a playground, park, café, library — or add your own with a tap.</p></div>
-      <div class="card"><div class="emoji">📣</div><h3>Broadcast it</h3><p>Let friends know you're heading there now or soon. They get a gentle nudge.</p></div>
-      <div class="card"><div class="emoji">🙌</div><h3>See who's in</h3><p>Friends say "I'm coming," "maybe," or "can't" — so plans happen without the group-chat back-and-forth.</p></div>
-      <div class="card"><div class="emoji">👨‍👩‍👧</div><h3>Solo or family</h3><p>Use it as yourself, or broadcast together as a family. Friends, not strangers — requests need accepting.</p></div>
+      <div class="card">
+        <div class="emoji">🛝</div>
+        <h3 class="en">Pick a spot</h3><h3 class="de">Wähl einen Ort</h3>
+        <p class="en">Search real spots or add your own with a tap and a pin you can fine-tune.</p>
+        <p class="de">Such echte Orte oder füg mit einem Tipp deinen eigenen hinzu — mit Pin zum Feinjustieren.</p>
+      </div>
+      <div class="card">
+        <div class="emoji">📣</div>
+        <h3 class="en">Broadcast it</h3><h3 class="de">Teile es</h3>
+        <p class="en">Let friends know you're heading there now or soon. They get a gentle nudge.</p>
+        <p class="de">Sag Freunden, dass du jetzt oder gleich hingehst. Sie bekommen einen kleinen Hinweis.</p>
+      </div>
+      <div class="card">
+        <div class="emoji">🙌</div>
+        <h3 class="en">See who's in</h3><h3 class="de">Sieh, wer dabei ist</h3>
+        <p class="en">Friends RSVP "coming," "maybe," or "can't" — so plans happen without the group-chat back-and-forth.</p>
+        <p class="de">Freunde sagen „komme", „vielleicht" oder „kann nicht" — Pläne entstehen ohne Gruppenchat-Hin-und-Her.</p>
+      </div>
+      <div class="card">
+        <div class="emoji">👨‍👩‍👧</div>
+        <h3 class="en">Solo or family</h3><h3 class="de">Allein oder Familie</h3>
+        <p class="en">Use it as yourself, or broadcast together as a family. Friends, not strangers — requests need accepting.</p>
+        <p class="de">Nutze es für dich oder sendet zusammen als Familie. Freunde, keine Fremden — Anfragen müssen angenommen werden.</p>
+      </div>
     </div>
   </main>
 
   <footer>
-    Outside · a small project from Berlin ·
-    <a href="./privacy.html">Privacy</a>·
-    <a href="./terms.html">Terms</a>·
-    <a href="./support.html">Support</a>·
-    <a href="mailto:zach.ermis+outside@gmail.com">Contact</a>
+    <span class="en">Outside · a small project from Berlin · </span>
+    <span class="de">Outside · ein kleines Projekt aus Berlin · </span>
+    <a href="./privacy.html" class="en">Privacy</a><a href="./privacy.html" class="de">Datenschutz</a>·
+    <a href="./terms.html" class="en">Terms</a><a href="./terms.html" class="de">AGB</a>·
+    <a href="./support.html" class="en">Support</a><a href="./support.html" class="de">Hilfe</a>·
+    <a href="mailto:zach.ermis+outside@gmail.com" class="en">Contact</a><a href="mailto:zach.ermis+outside@gmail.com" class="de">Kontakt</a>
   </footer>
+
+  <script>
+    function setLang(l){
+      document.body.className = 'lang-' + l;
+      document.documentElement.lang = l;
+      document.getElementById('btn-en').classList.toggle('active', l==='en');
+      document.getElementById('btn-de').classList.toggle('active', l==='de');
+      try { localStorage.setItem('outside.site.lang', l); } catch(e){}
+    }
+    // First visit: honour saved choice, else the browser's language.
+    (function(){
+      var saved;
+      try { saved = localStorage.getItem('outside.site.lang'); } catch(e){}
+      var l = saved || ((navigator.language||'').toLowerCase().startsWith('de') ? 'de' : 'en');
+      setLang(l);
+    })();
+  </script>
 </body>
 </html>
