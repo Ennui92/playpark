@@ -18,10 +18,14 @@ import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 interface Props {
   onPick: (place: PlaceDetails) => void;
   placeholder?: string;
+  // Optional location to bias results toward (usually the current pin /
+  // user's location). Omitted → global search.
+  biasCenter?: { lat: number; lng: number } | null;
 }
 
-// Search Berlin places by name or address. Debounced 300ms.
-export function PlaceAutocomplete({ onPick, placeholder }: Props) {
+// Search places by name or address, anywhere. Debounced 300ms. Results are
+// biased toward `biasCenter` when provided so nearby spots rank first.
+export function PlaceAutocomplete({ onPick, placeholder, biasCenter }: Props) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<PlacePrediction[]>([]);
   const [loading, setLoading] = useState(false);
@@ -32,6 +36,11 @@ export function PlaceAutocomplete({ onPick, placeholder }: Props) {
   // matches for Kollwitzplatz". Track the just-picked value so we skip
   // the next autocomplete fetch when q matches it exactly.
   const lastPicked = useRef<string | null>(null);
+
+  // Primitive bias coords so the effect doesn't re-run on every parent render
+  // (object identity would otherwise change each time).
+  const biasLat = biasCenter?.lat ?? null;
+  const biasLng = biasCenter?.lng ?? null;
 
   useEffect(() => {
     if (debounce.current) clearTimeout(debounce.current);
@@ -46,14 +55,15 @@ export function PlaceAutocomplete({ onPick, placeholder }: Props) {
     }
     setLoading(true);
     debounce.current = setTimeout(async () => {
-      const r = await autocompletePlaces(q);
+      const bias = biasLat != null && biasLng != null ? { lat: biasLat, lng: biasLng } : undefined;
+      const r = await autocompletePlaces(q, bias);
       setResults(r);
       setLoading(false);
     }, 300);
     return () => {
       if (debounce.current) clearTimeout(debounce.current);
     };
-  }, [q]);
+  }, [q, biasLat, biasLng]);
 
   async function pick(p: PlacePrediction) {
     setResolving(true);

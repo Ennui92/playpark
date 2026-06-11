@@ -19,7 +19,7 @@ import { useSession } from "@/contexts/SessionContext";
 import { useT, TranslationKey } from "@/i18n";
 import { LandmarkCategory } from "@/types";
 import { reverseGeocode, GeocodeResult, hasGoogleMapsKey, PlaceDetails } from "@/services/geocoding";
-import { BERLIN_ZIP_SET } from "@/data/berlinZips";
+import { normalizePostalCode } from "@/utils/postal";
 import { PlaceAutocomplete } from "@/components/PlaceAutocomplete";
 import { MapPreview } from "@/components/MapPreview";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
@@ -108,9 +108,9 @@ export function AddLandmarkScreen() {
     if (!family || !name.trim() || !coords) return;
     setSaving(true);
     try {
-      // Prefer the ZIP the geocoder returned, fallback to the family's.
-      const detectedZip =
-        geo?.zip && BERLIN_ZIP_SET.has(geo.zip) ? geo.zip : family.zip;
+      // Prefer the ZIP the geocoder returned (anywhere), fallback to the
+      // family's home postal code.
+      const detectedZip = geo?.zip ? normalizePostalCode(geo.zip) : family.zip;
       const { landmark: lm, existed } = await createUserLandmark({
         familyId: family.id,
         name: name.trim(),
@@ -164,6 +164,7 @@ export function AddLandmarkScreen() {
               <Label>{t("add.searchLabel")}</Label>
               <PlaceAutocomplete
                 placeholder={t("add.searchPlaceholder")}
+                biasCenter={coords}
                 onPick={(place: PlaceDetails) => {
                   // Pre-fill everything from the picked place. Name is
                   // editable in the field below.

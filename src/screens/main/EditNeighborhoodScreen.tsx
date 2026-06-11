@@ -8,7 +8,7 @@ import { ZipPicker } from "@/components/ZipPicker";
 import { supabase } from "@/config/supabase";
 import { useSession } from "@/contexts/SessionContext";
 import { useT } from "@/i18n";
-import { BERLIN_ZIP_SET } from "@/data/berlinZips";
+import { isLikelyPostalCode, normalizePostalCode } from "@/utils/postal";
 import { COLORS, FONT_SIZE, SPACING } from "@/utils/theme";
 
 export function EditNeighborhoodScreen() {
@@ -19,11 +19,11 @@ export function EditNeighborhoodScreen() {
   const [saving, setSaving] = useState(false);
 
   async function save() {
-    if (!family || !zip || !BERLIN_ZIP_SET.has(zip)) return;
+    if (!family || !zip || !isLikelyPostalCode(zip)) return;
     setSaving(true);
     const { error } = await supabase
       .from("families")
-      .update({ zip })
+      .update({ zip: normalizePostalCode(zip) })
       .eq("id", family.id);
     setSaving(false);
     if (error) {

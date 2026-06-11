@@ -16,10 +16,11 @@ import { LanguagePicker } from "@/components/LanguagePicker";
 import { completeSignup } from "@/services/auth";
 import { useSession } from "@/contexts/SessionContext";
 import { useT } from "@/i18n";
-import { BERLIN_ZIP_SET } from "@/data/berlinZips";
+import { isLikelyPostalCode, normalizePostalCode } from "@/utils/postal";
 import { COLORS, FONT_SIZE, RADIUS, SPACING } from "@/utils/theme";
 
-// Full Berlin PLZ catalogue lives in src/data/berlinZips.ts.
+// Berlin PLZ list (src/data/berlinZips.ts) is just quick-pick suggestions in
+// the ZipPicker now — any postal code, anywhere, is accepted.
 
 
 export function OnboardingScreen() {
@@ -39,8 +40,7 @@ export function OnboardingScreen() {
   const canSubmit =
     displayName.trim().length >= 1 &&
     usernameValid &&
-    !!zip &&
-    BERLIN_ZIP_SET.has(zip);
+    isLikelyPostalCode(zip);
 
   async function submit() {
     if (!canSubmit) return;
@@ -50,7 +50,7 @@ export function OnboardingScreen() {
       const group = familyName.trim() || display;
       await completeSignup({
         familyName: group,
-        zip,
+        zip: normalizePostalCode(zip),
         displayName: display,
         username: username.trim().toLowerCase(),
       });

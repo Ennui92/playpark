@@ -120,31 +120,34 @@ export interface PlacePrediction {
 }
 
 // Google's "New" Places API (places.googleapis.com/v1/places:autocomplete).
-// Biased to Berlin so neighborhood searches don't return a place in Spain.
+// Results are *biased* (not restricted) toward `bias` when given — typically
+// the user's current location — so nearby spots rank first while a specific
+// named search anywhere in the world still works. With no bias the search is
+// global. (Previously hard-locked to Berlin/Germany; opened up so the app
+// works anywhere.)
 export async function autocompletePlaces(
-  query: string
+  query: string,
+  bias?: { lat: number; lng: number }
 ): Promise<PlacePrediction[]> {
   if (!hasGoogleMapsKey() || query.trim().length < 2) return [];
 
   try {
+    const body: Record<string, unknown> = { input: query };
+    if (bias) {
+      body.locationBias = {
+        circle: {
+          center: { latitude: bias.lat, longitude: bias.lng },
+          radius: 30000.0, // 30km around the user
+        },
+      };
+    }
     const r = await fetch("https://places.googleapis.com/v1/places:autocomplete", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": extra.googleMapsApiKey!,
       },
-      body: JSON.stringify({
-        input: query,
-        languageCode: "de",
-        regionCode: "DE",
-        // Bias to Berlin (52.52, 13.405) within a 25km radius
-        locationBias: {
-          circle: {
-            center: { latitude: 52.52, longitude: 13.405 },
-            radius: 25000.0,
-          },
-        },
-      }),
+      body: JSON.stringify(body),
     });
     const j = await r.json();
     const list = (j.suggestions ?? [])
@@ -172,8 +175,10 @@ export interface PlaceDetails {
 export async function getPlaceDetails(placeId: string): Promise<PlaceDetails | null> {
   if (!hasGoogleMapsKey()) return null;
   try {
+    // No languageCode → Google returns the place's name in its local
+    // language, which is what we want for a worldwide app.
     const r = await fetch(
-      `https://places.googleapis.com/v1/places/${placeId}?languageCode=de`,
+      `https://places.googleapis.com/v1/places/${placeId}`,
       {
         headers: {
           "X-Goog-Api-Key": extra.googleMapsApiKey!,

@@ -9,6 +9,8 @@ import {
   Keyboard,
 } from "react-native";
 import { BERLIN_ZIPS, BerlinZip } from "@/data/berlinZips";
+import { isLikelyPostalCode } from "@/utils/postal";
+import { useT } from "@/i18n";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 
 interface Props {
@@ -17,15 +19,23 @@ interface Props {
   placeholder?: string;
 }
 
-// Autocomplete: type a PLZ, a Kiez name, or both — dropdown filters live.
-export function ZipPicker({ value, onChange, placeholder = "12051 or Neukölln…" }: Props) {
+// Pick a home area by postal code. Works ANYWHERE — type any postal code
+// (US, UK, anywhere) and commit it via the "Use …" row. The curated Berlin
+// list stays on as quick suggestions for the app's original audience.
+export function ZipPicker({ value, onChange, placeholder }: Props) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
 
-  const selected = BERLIN_ZIPS.find((z) => z.zip === value) ?? null;
-  const effectiveQuery = focused ? query : selected ? `${selected.zip} · ${selected.name}` : query;
+  // A selected value may be a Berlin code (show its Kiez label) or any other
+  // postal code the user typed (show it as-is).
+  const selectedBerlin = BERLIN_ZIPS.find((z) => z.zip === value) ?? null;
+  const selectedLabel = selectedBerlin
+    ? `${selectedBerlin.zip} · ${selectedBerlin.name}`
+    : value ?? "";
+  const effectiveQuery = focused ? query : selectedLabel || query;
 
-  const results = useMemo<BerlinZip[]>(() => {
+  const suggestions = useMemo<BerlinZip[]>(() => {
     const q = query.trim().toLowerCase();
     if (!q) return BERLIN_ZIPS.slice(0, 50);
     return BERLIN_ZIPS.filter(
@@ -33,8 +43,15 @@ export function ZipPicker({ value, onChange, placeholder = "12051 or Neukölln�
     ).slice(0, 50);
   }, [query]);
 
-  function pick(z: BerlinZip) {
-    onChange(z.zip);
+  // Offer "Use '<typed>'" whenever the input looks like a postal code and
+  // isn't already an exact Berlin suggestion — this is what lets people
+  // outside Berlin commit their own code.
+  const trimmed = query.trim();
+  const exactBerlin = BERLIN_ZIPS.some((z) => z.zip === trimmed);
+  const showUseRow = isLikelyPostalCode(trimmed) && !exactBerlin;
+
+  function commit(zip: string) {
+    onChange(zip);
     setQuery("");
     setFocused(false);
     Keyboard.dismiss();
@@ -54,24 +71,35 @@ export function ZipPicker({ value, onChange, placeholder = "12051 or Neukölln�
           setQuery("");
         }}
         onBlur={() => {
-          // Delay so tap on item still registers
+          // Delay so a tap on a dropdown item still registers.
           setTimeout(() => setFocused(false), 150);
         }}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t("zip.placeholder")}
         placeholderTextColor={COLORS.textTertiary}
         autoCorrect={false}
-        autoCapitalize="none"
+        autoCapitalize="characters"
         keyboardType="default"
+        returnKeyType="done"
+        onSubmitEditing={() => {
+          if (showUseRow) commit(trimmed);
+        }}
       />
       {focused && (
         <View style={styles.dropdown}>
+          {showUseRow && (
+            <TouchableOpacity style={styles.useRow} onPress={() => commit(trimmed)}>
+              <Text style={styles.useText}>{t("zip.use", { code: trimmed })}</Text>
+            </TouchableOpacity>
+          )}
           <FlatList
-            data={results}
+            data={suggestions}
             keyExtractor={(r) => r.zip}
             keyboardShouldPersistTaps="always"
-            ListEmptyComponent={<Text style={styles.empty}>No matches</Text>}
+            ListEmptyComponent={
+              showUseRow ? null : <Text style={styles.empty}>{t("zip.typeYours")}</Text>
+            }
             renderItem={({ item }) => (
-              <TouchableOpacity style={styles.row} onPress={() => pick(item)}>
+              <TouchableOpacity style={styles.row} onPress={() => commit(item.zip)}>
                 <Text style={styles.zip}>{item.zip}</Text>
                 <Text style={styles.name}>{item.name}</Text>
               </TouchableOpacity>
@@ -106,6 +134,14 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     ...SHADOW.md,
   },
+  useRow: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: COLORS.accentLight,
+    borderTopLeftRadius: RADIUS.md,
+    borderTopRightRadius: RADIUS.md,
+  },
+  useText: { color: COLORS.accentDark, fontWeight: "700" },
   row: {
     flexDirection: "row",
     gap: SPACING.sm,
