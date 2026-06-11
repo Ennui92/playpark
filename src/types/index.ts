@@ -50,6 +50,7 @@ export interface Landmark {
   lat: number;
   lng: number;
   created_by_family_id?: string | null;
+  place_id?: string | null;   // Google placeId — shared canonical identity
 }
 
 export interface Broadcast {

@@ -48,6 +48,10 @@ export function AddLandmarkScreen() {
   const [emoji, setEmoji] = useState("☕");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [geo, setGeo] = useState<GeocodeResult | null>(null);
+  // Google placeId of the picked place — gives it a shared identity so it
+  // dedups against the same place added by a friend. Cleared the moment the
+  // user moves the pin by hand (a hand-placed pin is no longer that place).
+  const [placeId, setPlaceId] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -76,6 +80,7 @@ export function AddLandmarkScreen() {
       if (loc) {
         const next = { lat: loc.coords.latitude, lng: loc.coords.longitude };
         setCoords(next);
+        setPlaceId(null); // GPS coords aren't a Google place
         // Fire-and-forget the reverse-geocode. We don't block UI on it.
         reverseGeocode(next.lat, next.lng)
           .then((g) => setGeo(g))
@@ -106,7 +111,7 @@ export function AddLandmarkScreen() {
       // Prefer the ZIP the geocoder returned, fallback to the family's.
       const detectedZip =
         geo?.zip && BERLIN_ZIP_SET.has(geo.zip) ? geo.zip : family.zip;
-      const lm = await createUserLandmark({
+      const { landmark: lm, existed } = await createUserLandmark({
         familyId: family.id,
         name: name.trim(),
         zip: detectedZip,
@@ -114,10 +119,18 @@ export function AddLandmarkScreen() {
         emoji,
         lat: coords.lat,
         lng: coords.lng,
+        placeId,
       });
-      showDialog(t("add.added"), t("add.addedSub", { name: lm.name }), [
-        { text: t("add.nice"), onPress: () => nav.goBack() },
-      ]);
+      // If a friend already put this exact place on the map, we reused their
+      // canonical row rather than making a duplicate — say so.
+      const alreadyOnMap = existed && lm.created_by_family_id !== family.id;
+      showDialog(
+        alreadyOnMap ? t("add.alreadyExists") : t("add.added"),
+        alreadyOnMap
+          ? t("add.alreadyExistsSub", { name: lm.name })
+          : t("add.addedSub", { name: lm.name }),
+        [{ text: t("add.nice"), onPress: () => nav.goBack() }]
+      );
     } catch (e: any) {
       showDialog(t("add.couldntAdd"), e.message ?? t("common.tryAgain"));
     } finally {
@@ -156,6 +169,7 @@ export function AddLandmarkScreen() {
                   // editable in the field below.
                   if (!name.trim()) setName(place.name);
                   setCoords({ lat: place.lat, lng: place.lng });
+                  setPlaceId(place.placeId);
                   setGeo({
                     formatted: place.formatted,
                     shortName: place.name,
@@ -240,7 +254,10 @@ export function AddLandmarkScreen() {
                 height={220}
                 showDirections={false}
                 label={name || undefined}
-                onCoordChange={(lat, lng) => setCoords({ lat, lng })}
+                onCoordChange={(lat, lng) => {
+                  setCoords({ lat, lng });
+                  setPlaceId(null); // hand-moved pin is no longer that Google place
+                }}
               />
               <Text style={styles.locFine}>{t("add.tipDrag")}</Text>
             </View>

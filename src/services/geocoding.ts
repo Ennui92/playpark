@@ -161,6 +161,7 @@ export async function autocompletePlaces(
 }
 
 export interface PlaceDetails {
+  placeId: string;            // Google's stable place identifier — used to dedup
   name: string;
   formatted: string;
   lat: number;
@@ -183,6 +184,7 @@ export async function getPlaceDetails(placeId: string): Promise<PlaceDetails | n
     const j = await r.json();
     if (!j.location) return null;
     return {
+      placeId,
       name: j.displayName?.text ?? "",
       formatted: j.formattedAddress ?? "",
       lat: j.location.latitude,

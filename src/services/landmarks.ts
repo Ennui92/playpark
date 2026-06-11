@@ -47,8 +47,31 @@ export async function getSubscribedLandmarkIds(familyId: string): Promise<Set<st
   return new Set((data ?? []).map((r: any) => r.landmark_id));
 }
 
-// Create a user-contributed landmark. RLS requires created_by_family_id
-// to match the caller's family.
+// Find a landmark by its Google placeId, if one already exists. RLS
+// landmarks_select is `using(true)`, so this reads across families —
+// letting us reuse a friend's canonical row instead of duplicating it.
+export async function getLandmarkByPlaceId(placeId: string): Promise<Landmark | null> {
+  const { data, error } = await supabase
+    .from("landmarks")
+    .select("*")
+    .eq("place_id", placeId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as Landmark) ?? null;
+}
+
+// Create a user-contributed landmark, OR return the existing canonical row
+// if this Google place is already on the map. RLS requires
+// created_by_family_id to match the caller's family on insert.
+//
+// `placeId` (from Google autocomplete) gives the place a stable identity:
+// the same real-world spot resolves to ONE row shared across families, so
+// pins aren't duplicated and "notify me on this place" subscriptions all
+// point at the same landmark. Manually-pinned places pass no placeId and
+// keep the plain insert behaviour.
+//
+// Returns `{ landmark, existed }` so the caller can tailor the success copy
+// ("added" vs "already on the map").
 export async function createUserLandmark(params: {
   familyId: string;
   name: string;
@@ -57,7 +80,14 @@ export async function createUserLandmark(params: {
   emoji: string;
   lat: number;
   lng: number;
-}): Promise<Landmark> {
+  placeId?: string | null;
+}): Promise<{ landmark: Landmark; existed: boolean }> {
+  // Dedup: if this Google place is already on the map, reuse it.
+  if (params.placeId) {
+    const existing = await getLandmarkByPlaceId(params.placeId);
+    if (existing) return { landmark: existing, existed: true };
+  }
+
   const { data, error } = await supabase
     .from("landmarks")
     .insert({
@@ -68,11 +98,21 @@ export async function createUserLandmark(params: {
       lat: params.lat,
       lng: params.lng,
       created_by_family_id: params.familyId,
+      place_id: params.placeId ?? null,
     })
     .select("*")
     .single();
-  if (error) throw error;
-  return data as Landmark;
+
+  if (error) {
+    // Unique-violation race: two devices added the same place at once.
+    // Fall back to the row the other insert won, instead of failing.
+    if ((error as any).code === "23505" && params.placeId) {
+      const existing = await getLandmarkByPlaceId(params.placeId);
+      if (existing) return { landmark: existing, existed: true };
+    }
+    throw error;
+  }
+  return { landmark: data as Landmark, existed: false };
 }
 
 // Update a landmark you created. RLS limits this to rows where
