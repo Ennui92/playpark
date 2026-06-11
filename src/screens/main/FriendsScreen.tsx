@@ -13,10 +13,11 @@ import {
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Button } from "@/components/Button";
 import { showDialog } from "@/components/dialog";
+import { LiveDot } from "@/components/LiveDot";
 import {
   addFriendViaUsername,
   getFriendFamilies,
@@ -25,9 +26,10 @@ import {
   acceptFriendRequest,
   declineFriendRequest,
 } from "@/services/friends";
+import { getActiveFeed } from "@/services/broadcasts";
 import { useSession } from "@/contexts/SessionContext";
 import { useT } from "@/i18n";
-import { Family, FriendRequest, RootStackParamList } from "@/types";
+import { Family, FriendRequest, BroadcastFeedItem, RootStackParamList } from "@/types";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -38,18 +40,27 @@ export function FriendsScreen() {
   const t = useT();
   const [friends, setFriends] = useState<Family[]>([]);
   const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([]);
+  // family_id → that friend's current active broadcast (so we can show a
+  // pulsing "out now" cue and link straight to where they are).
+  const [liveByFamily, setLiveByFamily] = useState<Map<string, BroadcastFeedItem>>(new Map());
   const [username, setUsername] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [adding, setAdding] = useState(false);
 
   const load = useCallback(async () => {
     if (!family) return;
-    const [fs, reqs] = await Promise.all([
+    const [fs, reqs, feed] = await Promise.all([
       getFriendFamilies(family.id),
       getPendingFriendRequests(),
+      getActiveFeed(),
     ]);
     setFriends(fs);
     setPendingRequests(reqs);
+    const live = new Map<string, BroadcastFeedItem>();
+    for (const b of feed) {
+      if (b.family_id !== family.id && !live.has(b.family_id)) live.set(b.family_id, b);
+    }
+    setLiveByFamily(live);
     setRefreshing(false);
     // Bubble badge count refresh up to the session so the tab badge
     // updates after we accept/decline here.
@@ -59,6 +70,13 @@ export function FriendsScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Refresh live cues + requests whenever the tab regains focus.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   async function addByUsername() {
     const u = username.trim().toLowerCase();
@@ -248,25 +266,44 @@ export function FriendsScreen() {
             <Text style={styles.emptySub}>{t("friends.emptySub")}</Text>
           </View>
         }
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.friendCard}
-            onPress={() => nav.navigate("FriendProfile", { familyId: item.id })}
-            onLongPress={() => confirmRemove(item)}
-          >
-            {item.avatar_url ? (
-              <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{item.name.charAt(0).toUpperCase()}</Text>
+        renderItem={({ item }) => {
+          const live = liveByFamily.get(item.id);
+          return (
+            <TouchableOpacity
+              style={[styles.friendCard, live && styles.friendCardLive]}
+              onPress={() => nav.navigate("FriendProfile", { familyId: item.id })}
+              onLongPress={() => confirmRemove(item)}
+            >
+              {item.avatar_url ? (
+                <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{item.name.charAt(0).toUpperCase()}</Text>
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <View style={styles.friendNameRow}>
+                  <Text style={styles.friendName}>{item.name}</Text>
+                  {live && <LiveDot size={8} />}
+                </View>
+                {live ? (
+                  // Tapping the live line jumps to the place — friends can
+                  // see & RSVP without it being one of their own saved spots.
+                  <TouchableOpacity
+                    onPress={() => nav.navigate("Landmark", { landmarkId: live.landmark_id })}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  >
+                    <Text style={styles.friendLive} numberOfLines={1}>
+                      {live.landmark_emoji ?? "📍"} {live.landmark_name} · {t("friends.outNow")}
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <Text style={styles.friendZip}>{item.zip}</Text>
+                )}
               </View>
-            )}
-            <View style={{ flex: 1 }}>
-              <Text style={styles.friendName}>{item.name}</Text>
-              <Text style={styles.friendZip}>{item.zip}</Text>
-            </View>
-          </TouchableOpacity>
-        )}
+            </TouchableOpacity>
+          );
+        }}
       />
     </SafeAreaView>
   );
@@ -362,8 +399,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   avatarText: { fontWeight: "800", color: COLORS.accent, fontSize: FONT_SIZE.lg },
+  friendCardLive: { borderWidth: 1, borderColor: COLORS.ever },
+  friendNameRow: { flexDirection: "row", alignItems: "center", gap: SPACING.sm },
   friendName: { fontSize: FONT_SIZE.md, fontWeight: "700", color: COLORS.textPrimary },
   friendZip: { color: COLORS.textSecondary, marginTop: 2 },
+  friendLive: { color: COLORS.ever, fontWeight: "700", marginTop: 2 },
   empty: { alignItems: "center", paddingHorizontal: SPACING.xl, paddingTop: SPACING.xl },
   emptyEmoji: { fontSize: 56, marginBottom: SPACING.md },
   emptyTitle: { fontSize: FONT_SIZE.lg, fontWeight: "700", color: COLORS.textPrimary },

@@ -21,6 +21,7 @@ import {
 } from "@/services/favorites";
 import { Landmark, BroadcastFeedItem, RootStackParamList } from "@/types";
 import { useT } from "@/i18n";
+import { LiveDot } from "@/components/LiveDot";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 import { formatWhen } from "@/utils/format";
 
@@ -135,6 +136,18 @@ export function HomeScreen() {
     [feed, family?.id]
   );
 
+  // Every active friend broadcast, regardless of ZIP or whether I've saved
+  // the place. This is the fix for "a friend broadcasts a place I don't have
+  // and I can't see it" — these cards link straight to the landmark, which
+  // is readable by id even if it's outside my neighbourhood. Soonest first.
+  const friendBroadcasts = useMemo(
+    () =>
+      feed
+        .filter((b) => b.family_id !== family?.id)
+        .sort((a, b) => new Date(a.planned_at).getTime() - new Date(b.planned_at).getTime()),
+    [feed, family?.id]
+  );
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -192,6 +205,41 @@ export function HomeScreen() {
               <Text style={styles.addPlus}>＋</Text>
               <Text style={styles.addText}>{t("home.addPlace")}</Text>
             </TouchableOpacity>
+
+            {/* Live now — every friend who's currently out, ANY place, even
+                ones outside my ZIP or that I haven't saved. Tap → landmark. */}
+            {friendBroadcasts.length > 0 && (
+              <View style={styles.liveSection}>
+                <View style={styles.liveHeader}>
+                  <LiveDot size={9} />
+                  <Text style={styles.liveTitle}>{t("home.liveNow")}</Text>
+                </View>
+                {friendBroadcasts.map((b) => (
+                  <TouchableOpacity
+                    key={b.id}
+                    style={styles.liveCard}
+                    onPress={() => nav.navigate("Landmark", { landmarkId: b.landmark_id })}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.liveEmoji}>{b.landmark_emoji ?? "📍"}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.liveName} numberOfLines={1}>
+                        {b.family_name}
+                      </Text>
+                      <Text style={styles.livePlace} numberOfLines={1}>
+                        {b.landmark_name} · {formatWhen(new Date(b.planned_at))}
+                      </Text>
+                      {!!b.message && (
+                        <Text style={styles.liveMsg} numberOfLines={1}>
+                          “{b.message}”
+                        </Text>
+                      )}
+                    </View>
+                    <Text style={styles.liveChevron}>›</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
         }
         renderItem={({ item }) => {
@@ -286,4 +334,37 @@ const styles = StyleSheet.create({
   },
   addPlus: { fontSize: FONT_SIZE.lg, color: COLORS.accentDark, fontWeight: "800" },
   addText: { color: COLORS.accentDark, fontWeight: "700" },
+
+  // "Live now" — the can't-miss strip of friends currently out.
+  liveSection: { marginTop: SPACING.xl },
+  liveHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  liveTitle: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: "800",
+    color: COLORS.ever,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
+  liveCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.md,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.ever,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+    ...SHADOW.sm,
+  },
+  liveEmoji: { fontSize: 30 },
+  liveName: { fontSize: FONT_SIZE.md, fontWeight: "800", color: COLORS.textPrimary },
+  livePlace: { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary, marginTop: 1 },
+  liveMsg: { fontSize: FONT_SIZE.sm, color: COLORS.textTertiary, marginTop: 1, fontStyle: "italic" },
+  liveChevron: { fontSize: 26, color: COLORS.textTertiary, fontWeight: "300" },
 });

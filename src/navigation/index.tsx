@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { NavigationContainer, NavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -84,26 +84,42 @@ export function RootNavigator() {
 
   const { refreshBadges } = useSession();
 
-  // Deep-link from a tapped push:
-  //   { type: 'broadcast', landmarkId } → Landmark detail
-  //   { type: 'friend_request' }        → Friends tab
-  //   { type: 'rsvp', landmarkId }      → Landmark detail (broadcaster sees RSVP context)
-  useEffect(() => {
-    const sub = Notifications.addNotificationResponseReceivedListener((resp) => {
-      const data = resp.notification.request.content.data as any;
-      if (!navRef.current) return;
-      if (data?.type === "broadcast" && data.landmarkId) {
+  // Route a tapped notification to the right screen. Retries until the
+  // navigation container is mounted — important for COLD STARTS, where the
+  // tap launches the app and navRef.current is briefly null. Without the
+  // retry, tapping a broadcast notification opened the app to Home and
+  // "showed nothing" because the navigate fired before nav was ready.
+  const routeFromData = useCallback(
+    (data: any, attempt = 0) => {
+      if (!data) return;
+      if (!navRef.current) {
+        if (attempt < 15) setTimeout(() => routeFromData(data, attempt + 1), 200);
+        return;
+      }
+      if (data.type === "broadcast" && data.landmarkId) {
         navRef.current.navigate("Landmark", { landmarkId: data.landmarkId });
-      } else if (data?.type === "rsvp" && data.landmarkId) {
+      } else if (data.type === "rsvp" && data.landmarkId) {
         navRef.current.navigate("Landmark", { landmarkId: data.landmarkId });
-      } else if (data?.type === "friend_request") {
+      } else if (data.type === "friend_request") {
         navRef.current.navigate("Main");
-        // Refresh count so the badge updates immediately when the user lands.
         refreshBadges?.();
       }
+    },
+    [refreshBadges]
+  );
+
+  useEffect(() => {
+    // Cold start: handle the notification that LAUNCHED the app. The
+    // response listener below does NOT reliably fire for that one.
+    Notifications.getLastNotificationResponseAsync().then((resp) => {
+      if (resp) routeFromData(resp.notification.request.content.data as any);
     });
-    // Also refresh the badge when a push is RECEIVED (not just tapped),
-    // so the (1) appears without requiring app-foreground.
+
+    // Warm taps while the app is running.
+    const sub = Notifications.addNotificationResponseReceivedListener((resp) => {
+      routeFromData(resp.notification.request.content.data as any);
+    });
+    // Refresh the friend-request badge on RECEIVE (not just tap).
     const received = Notifications.addNotificationReceivedListener((notif) => {
       const data = notif.request.content.data as any;
       if (data?.type === "friend_request") refreshBadges?.();
@@ -112,7 +128,7 @@ export function RootNavigator() {
       sub.remove();
       received.remove();
     };
-  }, [refreshBadges]);
+  }, [routeFromData, refreshBadges]);
 
   if (loading) {
     return (
