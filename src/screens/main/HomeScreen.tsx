@@ -12,7 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSession } from "@/contexts/SessionContext";
-import { getLandmarksByZip, getSubscribedLandmarkIds } from "@/services/landmarks";
+import { getLandmarksByZip, getMutedLandmarkIds } from "@/services/landmarks";
 import { getActiveFeed, getRsvpsForBroadcast } from "@/services/broadcasts";
 import {
   favoriteLandmark,
@@ -34,7 +34,7 @@ export function HomeScreen() {
 
   const [landmarks, setLandmarks] = useState<Landmark[]>([]);
   const [feed, setFeed] = useState<BroadcastFeedItem[]>([]);
-  const [subs, setSubs] = useState<Set<string>>(new Set());
+  const [muted, setMuted] = useState<Set<string>>(new Set());
   const [favs, setFavs] = useState<Set<string>>(new Set());
   const [joiningCount, setJoiningCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -43,15 +43,15 @@ export function HomeScreen() {
   const load = useCallback(async () => {
     if (!family) return;
     try {
-      const [lms, fd, sb, fv] = await Promise.all([
+      const [lms, fd, mt, fv] = await Promise.all([
         getLandmarksByZip(family.zip),
         getActiveFeed(),
-        getSubscribedLandmarkIds(family.id),
+        getMutedLandmarkIds(family.id),
         getFavoriteLandmarkIds(family.id),
       ]);
       setLandmarks(lms);
       setFeed(fd);
-      setSubs(sb);
+      setMuted(mt);
       setFavs(fv);
 
       // How many friends have RSVPed "coming" to MY active broadcast(s)?
@@ -109,7 +109,7 @@ export function HomeScreen() {
     return m;
   }, [feed]);
 
-  // Sort priority (descending): favorites → active broadcasts → subscribed → alpha.
+  // Sort priority (descending): favorites → active broadcasts → alpha.
   const sortedLandmarks = useMemo(() => {
     return [...landmarks].sort((a, b) => {
       const af = favs.has(a.id) ? 1 : 0;
@@ -118,12 +118,9 @@ export function HomeScreen() {
       const ab = broadcastsByLandmark.has(a.id) ? 1 : 0;
       const bb = broadcastsByLandmark.has(b.id) ? 1 : 0;
       if (ab !== bb) return bb - ab;
-      const as = subs.has(a.id) ? 1 : 0;
-      const bs = subs.has(b.id) ? 1 : 0;
-      if (as !== bs) return bs - as;
       return a.name.localeCompare(b.name);
     });
-  }, [landmarks, broadcastsByLandmark, subs, favs]);
+  }, [landmarks, broadcastsByLandmark, favs]);
 
   // Split my own broadcasts from friends' so the hero never counts ME as
   // "a friend who's out".
@@ -254,7 +251,7 @@ export function HomeScreen() {
         }
         renderItem={({ item }) => {
           const active = broadcastsByLandmark.get(item.id) ?? [];
-          const subscribed = subs.has(item.id);
+          const isMuted = muted.has(item.id);
           const isFav = favs.has(item.id);
           return (
             <TouchableOpacity
@@ -271,8 +268,8 @@ export function HomeScreen() {
                         .slice(0, 2)
                         .map((b) => `${b.family_name} · ${formatWhen(new Date(b.planned_at))}`)
                         .join(" • ") + (active.length > 2 ? ` • +${active.length - 2}` : "")
-                    : subscribed
-                      ? t("home.cardSubscribed")
+                    : isMuted
+                      ? t("home.cardMuted")
                       : t("home.cardTap")}
                 </Text>
               </View>

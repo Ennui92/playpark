@@ -16,9 +16,9 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Button } from "@/components/Button";
 import {
   getLandmarkById,
-  subscribeToLandmark,
-  unsubscribeFromLandmark,
-  getSubscribedLandmarkIds,
+  muteLandmark,
+  unmuteLandmark,
+  getMutedLandmarkIds,
   updateUserLandmark,
   deleteUserLandmark,
 } from "@/services/landmarks";
@@ -58,7 +58,7 @@ export function LandmarkScreen() {
   const [rsvpsByBroadcast, setRsvpsByBroadcast] = useState<
     Record<string, BroadcastRsvpRow[]>
   >({});
-  const [subscribed, setSubscribed] = useState(false);
+  const [muted, setMuted] = useState(false);
   const [favorite, setFavorite] = useState(false);
   const [loading, setLoading] = useState(true);
   // Pin-edit mode flips the MapPreview into draggable mode. Only the
@@ -106,15 +106,15 @@ export function LandmarkScreen() {
   const load = useCallback(async () => {
     if (!family) return;
     try {
-      const [lm, bs, subs, favs] = await Promise.all([
+      const [lm, bs, mutes, favs] = await Promise.all([
         getLandmarkById(landmarkId),
         getActiveBroadcastsForLandmark(landmarkId),
-        getSubscribedLandmarkIds(family.id),
+        getMutedLandmarkIds(family.id),
         getFavoriteLandmarkIds(family.id),
       ]);
       setLandmark(lm);
       setBroadcasts(bs);
-      setSubscribed(subs.has(landmarkId));
+      setMuted(mutes.has(landmarkId));
       setFavorite(favs.has(landmarkId));
 
       // RSVPs are per-broadcast — fetch in parallel.
@@ -232,15 +232,18 @@ export function LandmarkScreen() {
     }, [load])
   );
 
-  async function toggleSubscribe(next: boolean) {
+  // The switch shows "notify me here" (ON by default). Turning it OFF mutes
+  // the spot; turning it back ON unmutes. So notifyOn === !muted.
+  async function onToggleNotify(notifyOn: boolean) {
     if (!family) return;
+    const shouldMute = !notifyOn;
     // Optimistic — the toggle feel matters more than the server round-trip.
-    setSubscribed(next);
+    setMuted(shouldMute);
     try {
-      if (next) await subscribeToLandmark(family.id, landmarkId);
-      else await unsubscribeFromLandmark(family.id, landmarkId);
+      if (shouldMute) await muteLandmark(family.id, landmarkId);
+      else await unmuteLandmark(family.id, landmarkId);
     } catch {
-      setSubscribed(!next);
+      setMuted(!shouldMute);
     }
   }
 
@@ -307,8 +310,8 @@ export function LandmarkScreen() {
             <Text style={styles.subHint}>{t("lm.notifySub")}</Text>
           </View>
           <Switch
-            value={subscribed}
-            onValueChange={toggleSubscribe}
+            value={!muted}
+            onValueChange={onToggleNotify}
             trackColor={{ true: COLORS.accent, false: COLORS.border }}
             thumbColor="#fff"
           />

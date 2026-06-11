@@ -2,9 +2,8 @@
 // │ on_broadcast_created — Expo Push fan-out                                  │
 // │                                                                           │
 // │ Trigger: Database Webhook on INSERT into public.broadcasts.              │
-// │ Fans out a push notification to friend families who:                     │
-// │   1. Are friends with the broadcasting family, AND                       │
-// │   2. Have subscribed to the landmark (landmark_subs).                    │
+// │ Fans out a push notification to every friend of the broadcasting        │
+// │ family, EXCEPT friends who muted this landmark (landmark_mutes).         │
 // │                                                                           │
 // │ Deploy:                                                                   │
 // │   supabase functions deploy on_broadcast_created --no-verify-jwt         │
@@ -74,12 +73,10 @@ Deno.serve(async (req) => {
       return json({ error: "family or landmark not found" }, 404);
     }
 
-    // 2. Audience = the broadcasting family's friends. Previously we
-    //    intersected with landmark_subs (opt-in per-landmark notify),
-    //    but that meant zero notifications until someone explicitly
-    //    toggled "Notify me when friends head here" on each landmark.
-    //    Too friction-heavy: now every friend gets the push by default.
-    //    The landmark_subs opt-in can come back later as a mute model.
+    // 2. Audience = the broadcasting family's friends, by default. Every
+    //    friend gets the push — EXCEPT those who muted this specific
+    //    landmark (landmark_mutes). Mute is opt-out per place, so the
+    //    common case (no mutes) pings everyone.
     const { data: friendRows, error: friendErr } = await admin
       .from("friendships")
       .select("friend_family_id")
@@ -87,11 +84,25 @@ Deno.serve(async (req) => {
 
     if (friendErr) return json({ error: friendErr.message }, 500);
 
-    const audienceFamilyIds = (friendRows ?? []).map(
+    let audienceFamilyIds = (friendRows ?? []).map(
       (r: any) => r.friend_family_id
     );
     if (audienceFamilyIds.length === 0) {
       return json({ sent: 0, reason: "no friends" }, 200);
+    }
+
+    // Drop friends who muted this landmark.
+    const { data: muteRows } = await admin
+      .from("landmark_mutes")
+      .select("family_id")
+      .eq("landmark_id", broadcast.landmark_id)
+      .in("family_id", audienceFamilyIds);
+    const mutedIds = new Set((muteRows ?? []).map((r: any) => r.family_id));
+    if (mutedIds.size > 0) {
+      audienceFamilyIds = audienceFamilyIds.filter((id: string) => !mutedIds.has(id));
+    }
+    if (audienceFamilyIds.length === 0) {
+      return json({ sent: 0, reason: "all muted" }, 200);
     }
 
     // 3. Pull every push token for users in those families.

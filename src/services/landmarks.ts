@@ -21,26 +21,28 @@ export async function getLandmarkById(id: string): Promise<Landmark | null> {
   return (data as Landmark) ?? null;
 }
 
-// Subscribe (family → landmark). Idempotent thanks to PK (family_id, landmark_id).
-export async function subscribeToLandmark(familyId: string, landmarkId: string) {
+// Mute a landmark for a family — they stop getting broadcast pushes for it.
+// Friend broadcasts notify everyone by default; this is the per-place opt-out.
+// Idempotent thanks to PK (family_id, landmark_id).
+export async function muteLandmark(familyId: string, landmarkId: string) {
   const { error } = await supabase
-    .from("landmark_subs")
+    .from("landmark_mutes")
     .upsert({ family_id: familyId, landmark_id: landmarkId });
   if (error) throw error;
 }
 
-export async function unsubscribeFromLandmark(familyId: string, landmarkId: string) {
+export async function unmuteLandmark(familyId: string, landmarkId: string) {
   const { error } = await supabase
-    .from("landmark_subs")
+    .from("landmark_mutes")
     .delete()
     .eq("family_id", familyId)
     .eq("landmark_id", landmarkId);
   if (error) throw error;
 }
 
-export async function getSubscribedLandmarkIds(familyId: string): Promise<Set<string>> {
+export async function getMutedLandmarkIds(familyId: string): Promise<Set<string>> {
   const { data, error } = await supabase
-    .from("landmark_subs")
+    .from("landmark_mutes")
     .select("landmark_id")
     .eq("family_id", familyId);
   if (error) throw error;
