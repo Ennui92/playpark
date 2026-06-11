@@ -13,7 +13,8 @@ import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSession } from "@/contexts/SessionContext";
 import { getLandmarksByZip, getMutedLandmarkIds } from "@/services/landmarks";
-import { getActiveFeed, getRsvpsForBroadcast } from "@/services/broadcasts";
+import { getActiveFeed, getRsvpsForBroadcast, endBroadcast } from "@/services/broadcasts";
+import { showDialog } from "@/components/dialog";
 import {
   favoriteLandmark,
   getFavoriteLandmarkIds,
@@ -124,10 +125,25 @@ export function HomeScreen() {
 
   // Split my own broadcasts from friends' so the hero never counts ME as
   // "a friend who's out".
-  const amBroadcasting = useMemo(
-    () => feed.some((b) => b.family_id === family?.id),
+  const myBroadcast = useMemo(
+    () => feed.find((b) => b.family_id === family?.id) ?? null,
     [feed, family?.id]
   );
+  const amBroadcasting = !!myBroadcast;
+  const [stopping, setStopping] = useState(false);
+
+  async function stopBroadcasting() {
+    if (!myBroadcast) return;
+    setStopping(true);
+    try {
+      await endBroadcast(myBroadcast.id);
+      await load();
+    } catch (e: any) {
+      showDialog(t("common.somethingWrong"), e?.message ?? t("common.tryAgain"));
+    } finally {
+      setStopping(false);
+    }
+  }
   const friendsOutCount = useMemo(
     () => new Set(feed.filter((b) => b.family_id !== family?.id).map((b) => b.family_id)).size,
     [feed, family?.id]
@@ -171,6 +187,36 @@ export function HomeScreen() {
         }
         ListHeaderComponent={
           <View style={styles.header}>
+            {/* Active-broadcast banner — always reachable from Home so you
+                can stop wherever you are (the per-place Stop is easy to
+                lose track of when you're out). */}
+            {myBroadcast && (
+              <View style={styles.outBanner}>
+                <TouchableOpacity
+                  style={styles.outBannerMain}
+                  onPress={() =>
+                    nav.navigate("Landmark", { landmarkId: myBroadcast.landmark_id })
+                  }
+                  activeOpacity={0.85}
+                >
+                  <LiveDot size={9} color="#fff" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.outBannerLabel}>{t("home.youreOutBanner")}</Text>
+                    <Text style={styles.outBannerPlace} numberOfLines={1}>
+                      {myBroadcast.landmark_emoji} {myBroadcast.landmark_name} ·{" "}
+                      {formatWhen(new Date(myBroadcast.planned_at))}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.outBannerStop}
+                  onPress={stopBroadcasting}
+                  disabled={stopping}
+                >
+                  <Text style={styles.outBannerStopText}>{t("home.stop")}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
             <Text style={styles.hello}>
               {t("home.greeting", { name: family?.name ?? "👋" })}
             </Text>
@@ -305,6 +351,34 @@ const styles = StyleSheet.create({
   },
   // The changing numbers in the hero get the accent colour.
   heroNum: { color: COLORS.accent },
+  // "You're out" banner — evergreen, can't-miss, with an inline Stop.
+  outBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.sm,
+    backgroundColor: COLORS.ever,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    ...SHADOW.sm,
+  },
+  outBannerMain: { flexDirection: "row", alignItems: "center", gap: SPACING.sm, flex: 1 },
+  outBannerLabel: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: FONT_SIZE.xs,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    opacity: 0.9,
+  },
+  outBannerPlace: { color: "#fff", fontWeight: "700", fontSize: FONT_SIZE.md, marginTop: 1 },
+  outBannerStop: {
+    backgroundColor: "#fff",
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+  },
+  outBannerStopText: { color: COLORS.ever, fontWeight: "800", fontSize: FONT_SIZE.sm },
   card: {
     flexDirection: "row",
     alignItems: "center",

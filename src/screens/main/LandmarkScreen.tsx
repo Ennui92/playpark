@@ -25,11 +25,13 @@ import {
 import { showDialog } from "@/components/dialog";
 import {
   getActiveBroadcastsForLandmark,
+  getMyActiveBroadcast,
   setBroadcastRsvp,
   getRsvpsForBroadcast,
   endBroadcast,
   updateBroadcastMessage,
 } from "@/services/broadcasts";
+import { LiveDot } from "@/components/LiveDot";
 import {
   favoriteLandmark,
   getFavoriteLandmarkIds,
@@ -60,6 +62,9 @@ export function LandmarkScreen() {
   >({});
   const [muted, setMuted] = useState(false);
   const [favorite, setFavorite] = useState(false);
+  // My current active broadcast anywhere (the guard is one-per-family), so
+  // we can tell "broadcasting here" from "broadcasting at another place".
+  const [myGlobalBroadcast, setMyGlobalBroadcast] = useState<BroadcastFeedItem | null>(null);
   const [loading, setLoading] = useState(true);
   // Pin-edit mode flips the MapPreview into draggable mode. Only the
   // creator family can use it; RLS will reject from anyone else anyway.
@@ -106,16 +111,18 @@ export function LandmarkScreen() {
   const load = useCallback(async () => {
     if (!family) return;
     try {
-      const [lm, bs, mutes, favs] = await Promise.all([
+      const [lm, bs, mutes, favs, mine] = await Promise.all([
         getLandmarkById(landmarkId),
         getActiveBroadcastsForLandmark(landmarkId),
         getMutedLandmarkIds(family.id),
         getFavoriteLandmarkIds(family.id),
+        getMyActiveBroadcast(family.id),
       ]);
       setLandmark(lm);
       setBroadcasts(bs);
       setMuted(mutes.has(landmarkId));
       setFavorite(favs.has(landmarkId));
+      setMyGlobalBroadcast(mine);
 
       // RSVPs are per-broadcast — fetch in parallel.
       const rsvpResults = await Promise.all(
@@ -194,6 +201,7 @@ export function LandmarkScreen() {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       family_name: family.name,
+      family_avatar_url: family.avatar_url ?? null,
     };
     setRsvpsByBroadcast({
       ...rsvpsByBroadcast,
@@ -263,6 +271,22 @@ export function LandmarkScreen() {
             <Text style={styles.back}>{t("common.back")}</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Live banner — makes it obvious you arrived at an ACTIVE
+            broadcast, not just opened a place. */}
+        {broadcasts.length > 0 && (
+          <View style={styles.liveBanner}>
+            <LiveDot size={9} color="#fff" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.liveBannerLabel}>{t("home.liveNow")}</Text>
+              <Text style={styles.liveBannerText} numberOfLines={1}>
+                {broadcasts.length === 1
+                  ? `${broadcasts[0].family_name} · ${formatWhen(new Date(broadcasts[0].planned_at))}`
+                  : t("lm.liveMany", { count: broadcasts.length })}
+              </Text>
+            </View>
+          </View>
+        )}
 
         <View style={styles.hero}>
           <Text style={styles.heroEmoji}>{landmark.emoji}</Text>
@@ -347,9 +371,39 @@ export function LandmarkScreen() {
                       {coming.length > 0 && t("lm.summaryComing", { count: coming.length })}
                       {coming.length > 0 && maybe.length > 0 && " · "}
                       {maybe.length > 0 && t("lm.summaryMaybe", { count: maybe.length })}
-                      {coming.length > 0 &&
-                        ` (${coming.slice(0, 3).map((r) => r.family_name).join(", ")}${coming.length > 3 ? ` +${coming.length - 3}` : ""})`}
                     </Text>
+                  )}
+
+                  {/* Faces of who's coming — tap to open their profile. */}
+                  {coming.length > 0 && (
+                    <View style={styles.rsvpFaces}>
+                      {coming.map((r) => {
+                        const isMe = r.family_id === family?.id;
+                        return (
+                          <TouchableOpacity
+                            key={r.family_id}
+                            style={styles.rsvpFace}
+                            disabled={isMe}
+                            onPress={() =>
+                              nav.navigate("FriendProfile", { familyId: r.family_id })
+                            }
+                          >
+                            {r.family_avatar_url ? (
+                              <Image source={{ uri: r.family_avatar_url }} style={styles.rsvpAvatar} />
+                            ) : (
+                              <View style={[styles.rsvpAvatar, styles.rsvpAvatarFallback]}>
+                                <Text style={styles.rsvpAvatarText}>
+                                  {r.family_name.charAt(0).toUpperCase()}
+                                </Text>
+                              </View>
+                            )}
+                            <Text style={styles.rsvpFaceName} numberOfLines={1}>
+                              {isMe ? t("lm.youTag") : r.family_name}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
                   )}
 
                   {!isOwnBroadcast && (
@@ -411,6 +465,33 @@ export function LandmarkScreen() {
             >
               <Text style={styles.endBtnText}>{t("lm.endBroadcast")}</Text>
             </TouchableOpacity>
+          </View>
+        ) : myGlobalBroadcast ? (
+          // You already have an active broadcast — but at ANOTHER place.
+          // The "one active broadcast" guard would reject a new one here,
+          // so instead of an erroring Broadcast button, point you to where
+          // you're out and let you stop it.
+          <View>
+            <Text style={styles.elsewhereLabel}>
+              {t("lm.broadcastingElsewhere", { place: myGlobalBroadcast.landmark_name })}
+            </Text>
+            <View style={styles.elsewhereRow}>
+              <TouchableOpacity
+                style={styles.elsewhereGo}
+                onPress={() =>
+                  nav.navigate("Landmark", { landmarkId: myGlobalBroadcast.landmark_id })
+                }
+              >
+                <Text style={styles.elsewhereGoText}>{t("lm.goThere")}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.elsewhereStop}
+                onPress={() => onEndBroadcast(myGlobalBroadcast.id)}
+                disabled={updatingBroadcast}
+              >
+                <Text style={styles.elsewhereStopText}>{t("home.stop")}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ) : (
           <Button
@@ -554,6 +635,65 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.sm,
   },
   rsvpBtnTextActive: { color: "#fff" },
+  // Faces of who's coming.
+  rsvpFaces: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: SPACING.md,
+    marginTop: SPACING.sm,
+  },
+  rsvpFace: { alignItems: "center", width: 56 },
+  rsvpAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.accentLight },
+  rsvpAvatarFallback: { alignItems: "center", justifyContent: "center" },
+  rsvpAvatarText: { color: COLORS.accent, fontWeight: "800", fontSize: FONT_SIZE.md },
+  rsvpFaceName: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+    maxWidth: 56,
+    textAlign: "center",
+  },
+  // Live banner at the top of the screen.
+  liveBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.sm,
+    backgroundColor: COLORS.ever,
+    marginHorizontal: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.lg,
+    ...SHADOW.sm,
+  },
+  liveBannerLabel: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: FONT_SIZE.xs,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    opacity: 0.9,
+  },
+  liveBannerText: { color: "#fff", fontWeight: "700", fontSize: FONT_SIZE.md, marginTop: 1 },
+  // "You're broadcasting at another place" footer state.
+  elsewhereLabel: { color: COLORS.textSecondary, fontWeight: "600", marginBottom: SPACING.sm },
+  elsewhereRow: { flexDirection: "row", gap: SPACING.sm },
+  elsewhereGo: {
+    flex: 1,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.accent,
+    alignItems: "center",
+  },
+  elsewhereGoText: { color: COLORS.accent, fontWeight: "800" },
+  elsewhereStop: {
+    flex: 1,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.ever,
+    alignItems: "center",
+  },
+  elsewhereStopText: { color: "#fff", fontWeight: "800" },
   footerLabel: {
     color: COLORS.accent,
     fontWeight: "800",

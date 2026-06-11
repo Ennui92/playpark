@@ -71,6 +71,38 @@ export async function getActiveFeed(): Promise<BroadcastFeedItem[]> {
   })) as BroadcastFeedItem[];
 }
 
+// My single active broadcast (any landmark), or null. The "one active
+// broadcast" guard is global per family, so this is how a screen knows
+// whether I'm already out — even if I'm looking at a different place.
+export async function getMyActiveBroadcast(
+  familyId: string
+): Promise<BroadcastFeedItem | null> {
+  const { data, error } = await supabase
+    .from("broadcasts")
+    .select(`
+      *,
+      families:family_id ( name, avatar_url ),
+      landmarks:landmark_id ( name, emoji )
+    `)
+    .eq("family_id", familyId)
+    .is("ended_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+  const row: any = data;
+  return {
+    ...row,
+    family_name: row.families?.name ?? "Unknown",
+    family_avatar_url: row.families?.avatar_url ?? null,
+    landmark_name: row.landmarks?.name ?? "Unknown",
+    landmark_emoji: row.landmarks?.emoji ?? "📍",
+  } as BroadcastFeedItem;
+}
+
 export async function getActiveBroadcastsForLandmark(
   landmarkId: string
 ): Promise<BroadcastFeedItem[]> {
@@ -120,7 +152,7 @@ export async function getRsvpsForBroadcast(
     .from("broadcast_rsvps")
     .select(`
       broadcast_id, family_id, status, created_at, updated_at,
-      families:family_id ( name )
+      families:family_id ( name, avatar_url )
     `)
     .eq("broadcast_id", broadcastId);
   if (error) throw error;
@@ -131,6 +163,7 @@ export async function getRsvpsForBroadcast(
     created_at: r.created_at,
     updated_at: r.updated_at,
     family_name: r.families?.name ?? "Someone",
+    family_avatar_url: r.families?.avatar_url ?? null,
   })) as BroadcastRsvpRow[];
 }
 

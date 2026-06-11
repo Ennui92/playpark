@@ -86,6 +86,7 @@ export interface BroadcastRsvp {
 // Enriched RSVP for showing "X friends are coming" on a broadcast card.
 export interface BroadcastRsvpRow extends BroadcastRsvp {
   family_name: string;
+  family_avatar_url: string | null;
 }
 
 // Pending incoming friend request, enriched with the sender's family.
