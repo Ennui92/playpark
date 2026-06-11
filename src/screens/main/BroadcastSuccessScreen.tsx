@@ -4,6 +4,7 @@ import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Button } from "@/components/Button";
 import { RootStackParamList } from "@/types";
+import { useT } from "@/i18n";
 import { COLORS, FONT_SIZE, RADIUS, SPACING } from "@/utils/theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "BroadcastSuccess">;
@@ -16,6 +17,7 @@ type Route = RouteProp<RootStackParamList, "BroadcastSuccess">;
 export function BroadcastSuccessScreen() {
   const nav = useNavigation<Nav>();
   const route = useRoute<Route>();
+  const t = useT();
   const { landmarkName, landmarkEmoji, audienceCount } = route.params;
 
   const scale = useRef(new Animated.Value(0.2)).current;
@@ -52,7 +54,7 @@ export function BroadcastSuccessScreen() {
         onStartShouldSetResponder={() => true}
       >
         <Text style={styles.emoji}>{landmarkEmoji}</Text>
-        <Text style={styles.title}>You're broadcasting</Text>
+        <Text style={styles.title}>{t("bcs.broadcasting")}</Text>
         <Text style={styles.spot}>{landmarkName}</Text>
 
         <View style={styles.divider} />
@@ -61,16 +63,14 @@ export function BroadcastSuccessScreen() {
           <>
             <Text style={styles.count}>{displayCount}</Text>
             <Text style={styles.countLabel}>
-              friend {audienceCount === 1 ? "family" : "families"} just got a ping
+              {t(audienceCount === 1 ? "bcs.gotPingOne" : "bcs.gotPingMany")}
             </Text>
           </>
         ) : (
-          <Text style={styles.countLabel}>
-            No subscribers yet — add friends so they'll see you next time.
-          </Text>
+          <Text style={styles.countLabel}>{t("bcs.noFriends")}</Text>
         )}
 
-        <Button title="Done" onPress={() => nav.goBack()} style={{ marginTop: SPACING.lg }} />
+        <Button title={t("common.done")} onPress={() => nav.goBack()} style={{ marginTop: SPACING.lg }} />
       </Animated.View>
     </Pressable>
   );

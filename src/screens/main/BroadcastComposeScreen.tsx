@@ -60,9 +60,10 @@ export function BroadcastComposeScreen() {
         message: message.trim() || null,
       });
 
-      // Best-effort audience count (for the success animation). Friends of this
-      // family who are subscribed to this landmark.
-      const count = await estimateAudience(family.id, landmarkId);
+      // Best-effort audience count (for the success animation). The edge
+      // function pings ALL friends now, so the audience is simply your
+      // friends — not just those subscribed to this landmark.
+      const count = await estimateAudience(family.id);
 
       nav.replace("BroadcastSuccess", {
         landmarkName: landmark.name,
@@ -137,20 +138,14 @@ export function BroadcastComposeScreen() {
   );
 }
 
-async function estimateAudience(myFamilyId: string, landmarkId: string): Promise<number> {
-  // Same shape as the edge function: friends ∩ landmark subscribers.
-  const { data: friends } = await supabase
+async function estimateAudience(myFamilyId: string): Promise<number> {
+  // The edge function pings every friend on any broadcast, so the audience
+  // is just your friend count.
+  const { count } = await supabase
     .from("friendships")
-    .select("friend_family_id")
+    .select("friend_family_id", { count: "exact", head: true })
     .eq("family_id", myFamilyId);
-  const ids = (friends ?? []).map((r: any) => r.friend_family_id);
-  if (ids.length === 0) return 0;
-  const { data: subs } = await supabase
-    .from("landmark_subs")
-    .select("family_id")
-    .eq("landmark_id", landmarkId)
-    .in("family_id", ids);
-  return (subs ?? []).length;
+  return count ?? 0;
 }
 
 const styles = StyleSheet.create({

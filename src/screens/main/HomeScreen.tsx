@@ -179,15 +179,25 @@ export function HomeScreen() {
             </Text>
             <Text style={styles.hero}>
               {amBroadcasting ? (
-                joiningCount > 0 ? (
-                  <>
-                    {t("home.youreOutPrefix")}{" "}
-                    <Text style={styles.heroNum}>{joiningCount}</Text>{" "}
-                    {t(joiningCount === 1 ? "home.joiningSuffixOne" : "home.joiningSuffixMany")}
-                  </>
-                ) : (
-                  t("home.youreOutNoneJoined")
-                )
+                <>
+                  {t("home.youreA")}
+                  <Text style={styles.heroNum}>{t("home.outWord")}</Text>
+                  {joiningCount > 0 ? (
+                    <>
+                      {" · "}
+                      <Text style={styles.heroNum}>{joiningCount}</Text>{" "}
+                      {t(joiningCount === 1 ? "home.joiningSuffixOne" : "home.joiningSuffixMany")}
+                    </>
+                  ) : friendsOutCount > 0 ? (
+                    <>
+                      {" · "}
+                      <Text style={styles.heroNum}>{friendsOutCount}</Text>{" "}
+                      {t(friendsOutCount === 1 ? "home.alsoOutSuffixOne" : "home.alsoOutSuffixMany")}
+                    </>
+                  ) : (
+                    <>{" — "}{t("home.waitingTail")}</>
+                  )}
+                </>
               ) : friendsOutCount > 0 ? (
                 <>
                   <Text style={styles.heroNum}>{friendsOutCount}</Text>{" "}

@@ -327,8 +327,13 @@ export function LandmarkScreen() {
               const isOwnBroadcast = b.family_id === family?.id;
 
               return (
-                <View key={b.id} style={styles.bcCard}>
-                  <Text style={styles.bcWho}>{b.family_name}</Text>
+                <View key={b.id} style={[styles.bcCard, isOwnBroadcast && styles.bcCardMine]}>
+                  <View style={styles.bcWhoRow}>
+                    <Text style={styles.bcWho}>{b.family_name}</Text>
+                    {isOwnBroadcast && (
+                      <Text style={styles.bcYouTag}>{t("lm.youTag")}</Text>
+                    )}
+                  </View>
                   <Text style={styles.bcWhen}>
                     {formatWhen(new Date(b.planned_at))}
                   </Text>
@@ -499,7 +504,20 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
     ...SHADOW.sm,
   },
+  bcCardMine: { borderWidth: 1.5, borderColor: COLORS.accent },
+  bcWhoRow: { flexDirection: "row", alignItems: "center", gap: SPACING.sm },
   bcWho: { fontWeight: "700", color: COLORS.textPrimary, fontSize: FONT_SIZE.md },
+  bcYouTag: {
+    color: COLORS.accentDark,
+    backgroundColor: COLORS.accentLight,
+    fontWeight: "800",
+    fontSize: FONT_SIZE.xs,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+    borderRadius: RADIUS.full,
+    overflow: "hidden",
+    textTransform: "uppercase",
+  },
   bcWhen: { color: COLORS.ever, fontWeight: "600", marginTop: 2 },
   bcMsg: { color: COLORS.textSecondary, marginTop: SPACING.xs, fontStyle: "italic" },
   bcRsvpSummary: {
@@ -557,10 +575,14 @@ const styles = StyleSheet.create({
   },
   statusChipText: { color: COLORS.textPrimary, fontWeight: "700", fontSize: FONT_SIZE.sm },
   endBtn: {
+    marginTop: SPACING.xs,
     paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+    borderWidth: 1.5,
+    borderColor: COLORS.accent,
     alignItems: "center",
   },
-  endBtnText: { color: COLORS.danger, fontWeight: "700", fontSize: FONT_SIZE.sm },
+  endBtnText: { color: COLORS.accent, fontWeight: "800", fontSize: FONT_SIZE.sm },
   footer: {
     padding: SPACING.md,
     backgroundColor: COLORS.surface,
