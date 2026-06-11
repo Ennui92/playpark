@@ -15,7 +15,7 @@ Outside — where friends go
 
 **Short description** (max 80)
 ```
-Tell friends where you're headed in Berlin — and see who's coming along.
+Tell friends where you're headed in Berlin (or anywhere) — see who's coming.
 ```
 
 **Full description** (max 4000)
@@ -31,7 +31,7 @@ WHY YOU'LL LIKE IT
 • Status updates — let people know you're running late or heading home.
 • Friends, not strangers — adding someone sends a request they choose to accept. Nobody is added without agreeing.
 • Solo or as a family — use it just for you, or broadcast together as "the Chens."
-• Built for Berlin — places are organised by your Kiez (PLZ).
+• Made in Berlin, works anywhere — places are organised by your postal code.
 • English and German — switch any time.
 
 PRIVATE BY DESIGN
@@ -67,7 +67,7 @@ DARUM WIRST DU ES MÖGEN
 • Status-Updates — sag Bescheid, wenn du dich verspätest oder auf dem Heimweg bist.
 • Freunde, keine Fremden — beim Hinzufügen wird eine Anfrage gesendet, die angenommen werden muss.
 • Allein oder als Familie — nutze es für dich oder sendet zusammen als „Familie Chen".
-• Für Berlin gemacht — Orte sind nach deinem Kiez (PLZ) sortiert.
+• In Berlin gemacht, funktioniert überall — Orte sind nach deiner PLZ sortiert.
 • Englisch und Deutsch — jederzeit umschaltbar.
 
 PRIVAT VON GRUND AUF
