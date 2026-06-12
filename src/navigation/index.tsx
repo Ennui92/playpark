@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, View, Text, StyleSheet } from "react-native";
 import { NavigationContainer, NavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -7,7 +7,9 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
 
 import { useSession } from "@/contexts/SessionContext";
-import { COLORS } from "@/utils/theme";
+import { useT } from "@/i18n";
+import { Button } from "@/components/Button";
+import { COLORS, FONT_SIZE, SPACING } from "@/utils/theme";
 import { RootStackParamList, MainTabParamList } from "@/types";
 
 import { SignInScreen } from "@/screens/auth/SignInScreen";
@@ -79,10 +81,9 @@ function MainTabs() {
 }
 
 export function RootNavigator() {
-  const { loading, session, user } = useSession();
+  const { loading, session, user, initError, retryInit, refreshBadges } = useSession();
   const navRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
-
-  const { refreshBadges } = useSession();
+  const t = useT();
 
   // Route a tapped notification to the right screen. Retries until the
   // navigation container is mounted — important for COLD STARTS, where the
@@ -138,6 +139,19 @@ export function RootNavigator() {
     );
   }
 
+  // We have a session but the profile fetch failed (network) — show a Retry
+  // rather than hanging on the splash or wrongly routing to onboarding.
+  if (session && !user && initError) {
+    return (
+      <View style={styles.retry}>
+        <Text style={styles.retryEmoji}>📡</Text>
+        <Text style={styles.retryTitle}>{t("session.loadFailed")}</Text>
+        <Text style={styles.retrySub}>{t("session.loadFailedSub")}</Text>
+        <Button title={t("common.retry")} onPress={retryInit} style={{ marginTop: SPACING.lg }} />
+      </View>
+    );
+  }
+
   // Branching:
   //   no session          → Auth
   //   session, no profile → Onboarding
@@ -189,3 +203,26 @@ export function RootNavigator() {
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  retry: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: SPACING.xl,
+  },
+  retryEmoji: { fontSize: 56, marginBottom: SPACING.md },
+  retryTitle: {
+    fontSize: FONT_SIZE.lg,
+    fontWeight: "800",
+    color: COLORS.textPrimary,
+    textAlign: "center",
+  },
+  retrySub: {
+    fontSize: FONT_SIZE.md,
+    color: COLORS.textSecondary,
+    textAlign: "center",
+    marginTop: SPACING.xs,
+  },
+});

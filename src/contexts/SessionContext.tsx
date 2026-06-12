@@ -1,5 +1,6 @@
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -24,6 +25,11 @@ interface SessionContextValue {
   user: AppUser | null;
   family: Family | null;
   loading: boolean;
+  // True when booting found a session but the profile fetch failed (network)
+  // — distinct from "no profile yet" (a genuine new user). Lets the UI show a
+  // Retry instead of hanging or wrongly sending an onboarded user to signup.
+  initError: boolean;
+  retryInit: () => void;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
   // Badge counts surfaced on the bottom tabs. Refreshed when:
@@ -41,14 +47,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [family, setFamily] = useState<Family | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initError, setInitError] = useState(false);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
 
   async function loadProfile(authUserId: string) {
-    const { data: userRow } = await supabase
+    // IMPORTANT: surface errors (don't swallow). A thrown error here means
+    // a *network/db failure*, which the caller treats as initError — NOT the
+    // same as a missing row (a genuine new user who needs onboarding).
+    const { data: userRow, error: userErr } = await supabase
       .from("users")
       .select("*")
       .eq("id", authUserId)
       .maybeSingle();
+    if (userErr) throw userErr;
 
     if (!userRow) {
       setUser(null);
@@ -56,7 +67,18 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setPendingRequestCount(0);
       return;
     }
+
+    const { data: familyRow, error: famErr } = await supabase
+      .from("families")
+      .select("*")
+      .eq("id", (userRow as AppUser).family_id)
+      .maybeSingle();
+    if (famErr) throw famErr;
+
+    // Commit user + family together so we never render a half-loaded
+    // profile (user set but family null → blank Home).
     setUser(userRow as AppUser);
+    setFamily((familyRow as Family) ?? null);
 
     // Fire-and-forget push registration. Failures are logged but don't
     // block sign-in — the MeScreen "Test push setup" button lets the
@@ -65,14 +87,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       console.warn("[push] auto-register failed:", e?.message ?? e);
     });
 
-    const { data: familyRow } = await supabase
-      .from("families")
-      .select("*")
-      .eq("id", (userRow as AppUser).family_id)
-      .maybeSingle();
-
-    setFamily((familyRow as Family) ?? null);
-
     // Initial badge count.
     if (familyRow) {
       getPendingRequestCount((familyRow as Family).id)
@@ -80,6 +94,41 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         .catch(() => {});
     }
   }
+
+  // Bound a promise so the splash can't wait the full 30s request timeout.
+  function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+    return Promise.race([
+      p,
+      new Promise<T>((_, reject) =>
+        setTimeout(() => reject(new Error("boot timeout")), ms)
+      ),
+    ]);
+  }
+
+  // Boot: read the session and load the profile. Always resolves `loading`
+  // (try/finally) so the splash spinner can never hang. On failure it sets
+  // initError so the UI can offer a Retry.
+  const bootstrap = useCallback(async () => {
+    const BOOT_TIMEOUT_MS = 8000;
+    setInitError(false);
+    try {
+      const { data } = await withTimeout(supabase.auth.getSession(), BOOT_TIMEOUT_MS);
+      setSession(data.session);
+      if (data.session?.user) {
+        await withTimeout(loadProfile(data.session.user.id), BOOT_TIMEOUT_MS);
+      }
+    } catch (e: any) {
+      console.warn("[session] init failed:", e?.message ?? e);
+      setInitError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const retryInit = useCallback(() => {
+    setLoading(true);
+    bootstrap();
+  }, [bootstrap]);
 
   async function refreshBadgesInternal() {
     if (!family) return;
@@ -94,19 +143,22 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!mounted) return;
-      setSession(data.session);
-      if (data.session?.user) {
-        await loadProfile(data.session.user.id);
-      }
-      setLoading(false);
-    });
+    bootstrap();
+
+    // Last-resort safety net: even if something above never settles, never
+    // leave the splash spinner up for more than ~10s.
+    const safety = setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, 10000);
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (_e, s) => {
       setSession(s);
       if (s?.user) {
-        await loadProfile(s.user.id);
+        try {
+          await loadProfile(s.user.id);
+        } catch (e: any) {
+          console.warn("[session] profile refresh failed:", e?.message ?? e);
+        }
       } else {
         setUser(null);
         setFamily(null);
@@ -116,9 +168,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       mounted = false;
+      clearTimeout(safety);
       sub.subscription.unsubscribe();
     };
-  }, []);
+  }, [bootstrap]);
 
   const value = useMemo<SessionContextValue>(
     () => ({
@@ -126,6 +179,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       user,
       family,
       loading,
+      initError,
+      retryInit,
       pendingRequestCount,
       refreshProfile: async () => {
         if (session?.user) await loadProfile(session.user.id);
@@ -135,7 +190,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         await supabase.auth.signOut();
       },
     }),
-    [session, user, family, loading, pendingRequestCount]
+    [session, user, family, loading, initError, retryInit, pendingRequestCount]
   );
 
   return (
