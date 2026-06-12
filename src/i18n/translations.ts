@@ -25,6 +25,7 @@ export const en = {
   "common.retry": "Retry",
   "session.loadFailed": "Couldn't load your profile",
   "session.loadFailedSub": "Check your connection and try again.",
+  "session.takingLong": "Taking longer than usual…",
   // Broadcast success modal
   "bcs.broadcasting": "You're broadcasting",
   "bcs.gotPingOne": "friend just got a ping",
@@ -300,6 +301,7 @@ export const de: Record<TranslationKey, string> = {
   "common.retry": "Erneut versuchen",
   "session.loadFailed": "Profil konnte nicht geladen werden",
   "session.loadFailedSub": "Prüfe deine Verbindung und versuch es nochmal.",
+  "session.takingLong": "Dauert länger als sonst…",
   "bcs.broadcasting": "Du sendest gerade",
   "bcs.gotPingOne": "Freund wurde benachrichtigt",
   "bcs.gotPingMany": "Freunde wurden benachrichtigt",

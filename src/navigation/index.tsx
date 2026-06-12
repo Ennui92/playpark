@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useRef } from "react";
-import { ActivityIndicator, View, Text, StyleSheet } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Animated, Easing, View, Text, StyleSheet } from "react-native";
 import { NavigationContainer, NavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -135,11 +135,7 @@ export function RootNavigator() {
   }, [routeFromData, refreshBadges]);
 
   if (loading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: COLORS.background, justifyContent: "center" }}>
-        <ActivityIndicator color={COLORS.accent} size="large" />
-      </View>
-    );
+    return <BootScreen onRetry={retryInit} />;
   }
 
   // We have a session but the profile fetch failed (network) — show a Retry
@@ -207,7 +203,100 @@ export function RootNavigator() {
   );
 }
 
+// Startup screen: a branded, animated indeterminate bar instead of a bare
+// spinner. If the load drags on, it surfaces a Retry so the user is never
+// stuck staring at a dead loader (the actual load is capped in
+// SessionContext, but this guarantees an escape hatch in the UI too).
+const BAR_W = 200;
+const FILL_W = 70;
+
+function BootScreen({ onRetry }: { onRetry: () => void }) {
+  const t = useT();
+  const slide = useRef(new Animated.Value(0)).current;
+  const [showRetry, setShowRetry] = useState(false);
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(slide, {
+        toValue: 1,
+        duration: 1100,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: true,
+      })
+    );
+    loop.start();
+    const id = setTimeout(() => setShowRetry(true), 6000);
+    return () => {
+      loop.stop();
+      clearTimeout(id);
+    };
+  }, [slide]);
+
+  const translateX = slide.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-FILL_W, BAR_W],
+  });
+
+  return (
+    <View style={styles.boot}>
+      <View style={styles.bootMark}>
+        <Text style={styles.bootMarkText}>o</Text>
+      </View>
+      <View style={styles.bar}>
+        <Animated.View style={[styles.barFill, { transform: [{ translateX }] }]} />
+      </View>
+      {showRetry && (
+        <>
+          <Text style={styles.bootHint}>{t("session.takingLong")}</Text>
+          <Button
+            title={t("common.retry")}
+            variant="secondary"
+            onPress={onRetry}
+            style={{ marginTop: SPACING.sm }}
+          />
+        </>
+      )}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  boot: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: SPACING.xl,
+  },
+  bootMark: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    backgroundColor: COLORS.accent,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: SPACING.xl,
+  },
+  bootMarkText: { color: "#fff", fontSize: 44, fontWeight: "800" },
+  bar: {
+    width: BAR_W,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.accentLight,
+    overflow: "hidden",
+  },
+  barFill: {
+    width: FILL_W,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.accent,
+  },
+  bootHint: {
+    color: COLORS.textSecondary,
+    marginTop: SPACING.xl,
+    fontSize: FONT_SIZE.sm,
+    textAlign: "center",
+  },
   retry: {
     flex: 1,
     backgroundColor: COLORS.background,
