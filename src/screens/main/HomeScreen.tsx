@@ -17,7 +17,7 @@ import { getActiveFeed, getRsvpsForBroadcast, endBroadcast } from "@/services/br
 import { showDialog } from "@/components/dialog";
 import {
   favoriteLandmark,
-  getFavoriteLandmarkIds,
+  getFavoriteLandmarks,
   unfavoriteLandmark,
 } from "@/services/favorites";
 import { Landmark, BroadcastFeedItem, RootStackParamList } from "@/types";
@@ -44,16 +44,23 @@ export function HomeScreen() {
   const load = useCallback(async () => {
     if (!family) return;
     try {
-      const [lms, fd, mt, fv] = await Promise.all([
+      const [zipLms, fd, mt, favLms] = await Promise.all([
         getLandmarksByZip(family.zip),
         getActiveFeed(),
         getMutedLandmarkIds(family.id),
-        getFavoriteLandmarkIds(family.id),
+        getFavoriteLandmarks(family.id),
       ]);
-      setLandmarks(lms);
+      // "My places" = everything in my postal code PLUS everything I've
+      // saved, anywhere. Saved spots are no longer caged to my PLZ, so an
+      // out-of-area place I saved (or RSVP'd "coming" to) stays in my list
+      // and I can broadcast it. Dedupe by id.
+      const byId = new Map<string, Landmark>();
+      for (const l of zipLms) byId.set(l.id, l);
+      for (const l of favLms) byId.set(l.id, l);
+      setLandmarks([...byId.values()]);
       setFeed(fd);
       setMuted(mt);
-      setFavs(fv);
+      setFavs(new Set(favLms.map((l) => l.id)));
 
       // How many friends have RSVPed "coming" to MY active broadcast(s)?
       const mine = fd.filter((b) => b.family_id === family.id);

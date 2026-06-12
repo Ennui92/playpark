@@ -209,6 +209,12 @@ export function LandmarkScreen() {
     });
     try {
       await setBroadcastRsvp(broadcastId, status);
+      // Saying "I'm coming" saves the place to your list (any postal code),
+      // so it persists and you can broadcast it later — even out of area.
+      if (status === "coming" && !favorite) {
+        setFavorite(true);
+        favoriteLandmark(family.id, landmarkId).catch(() => setFavorite(false));
+      }
     } catch (e: any) {
       showDialog(t("lm.rsvpCouldnt"), e?.message ?? t("common.tryAgain"));
       await load();
