@@ -94,7 +94,10 @@ export function RootNavigator() {
     (data: any, attempt = 0) => {
       if (!data) return;
       if (!navRef.current) {
-        if (attempt < 15) setTimeout(() => routeFromData(data, attempt + 1), 200);
+        // The container isn't mounted until session loading resolves (up to
+        // ~8s on a cold/flaky open), so keep retrying well past that or the
+        // deep link is silently dropped ("tapped, opened to nothing").
+        if (attempt < 75) setTimeout(() => routeFromData(data, attempt + 1), 200);
         return;
       }
       if (data.type === "broadcast" && data.landmarkId) {

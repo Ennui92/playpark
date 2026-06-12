@@ -42,6 +42,11 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   // English→German flash on cold start for users who picked German.
   useEffect(() => {
     let mounted = true;
+    // Safety net: never block the app on the stored-language read. If
+    // SecureStore stalls, fall back to the default after a short grace.
+    const safety = setTimeout(() => {
+      if (mounted) setReady(true);
+    }, 2000);
     SecureStore.getItemAsync(STORAGE_KEY)
       .then((stored) => {
         if (!mounted) return;
@@ -49,10 +54,14 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {})
       .finally(() => {
-        if (mounted) setReady(true);
+        if (mounted) {
+          clearTimeout(safety);
+          setReady(true);
+        }
       });
     return () => {
       mounted = false;
+      clearTimeout(safety);
     };
   }, []);
 
