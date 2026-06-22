@@ -2,7 +2,8 @@ import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
-import { supabase } from "@/config/supabase";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "@/config/firebase";
 
 // Called once after sign-in. Asks for permission, registers the Expo push
 // token, and stores it on public.users.push_token for the edge function to
@@ -63,13 +64,11 @@ export async function registerForPushNotifications(userId: string): Promise<stri
     throw new Error("Expo returned no token");
   }
 
-  // Persist on the user row. RLS allows self-update (users_update policy).
-  const { error: dbErr } = await supabase
-    .from("users")
-    .update({ push_token: token })
-    .eq("id", userId);
-  if (dbErr) {
-    throw new Error(`Failed to save token: ${dbErr.message}`);
+  // Persist on the user doc. Rules allow self-update.
+  try {
+    await updateDoc(doc(db, "users", userId), { push_token: token });
+  } catch (e: any) {
+    throw new Error(`Failed to save token: ${e?.message ?? e}`);
   }
 
   return token;

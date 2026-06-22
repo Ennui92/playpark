@@ -1,109 +1,145 @@
-import Constants from "expo-constants";
-import { supabase } from "@/config/supabase";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  deleteUser,
+} from "firebase/auth";
+import {
+  doc,
+  collection,
+  getDoc,
+  getDocs,
+  deleteDoc,
+  runTransaction,
+  query,
+  where,
+} from "firebase/firestore";
+import { auth, db } from "@/config/firebase";
+import { setCachedFamilyId } from "@/services/me";
 
-// Dev backdoor: typing this as the OTP signs any email in without an actual
-// email. Remove / env-gate before shipping to real users.
-const DEV_MAGIC_CODE = "123456";
+// ── Auth model note ─────────────────────────────────────────────────────────
+// Supabase used passwordless email OTP (6-digit code). Firebase Auth has no
+// email-OTP-code primitive (only email-LINK or password). To keep onboarding
+// reliable and fully testable we use email + password here. The two-step
+// "email then code" UI became a single email + password form. See MIGRATION.md
+// — passwordless email-link is a possible future swap.
 
-const extra = (Constants.expoConfig?.extra ?? {}) as {
-  supabaseUrl?: string;
-  supabaseAnonKey?: string;
-};
-
-// Magic-link / OTP style email auth. Passwordless keeps onboarding friction low.
-export async function sendEmailOtp(email: string) {
-  // Try the real OTP send. If it fails (rate limit, etc.) we swallow the
-  // error so the user can still advance to the code screen and use the dev
-  // backdoor. The error is logged so real problems are visible in Metro.
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: { shouldCreateUser: true },
-  });
-  if (error) {
-    console.warn("[auth] sendEmailOtp failed (ok for dev):", error.message);
+// Sign in; if the account doesn't exist yet, create it. This preserves the
+// "one field, just get me in" feel of the old OTP flow.
+export async function signInOrCreate(email: string, password: string) {
+  const e = email.trim().toLowerCase();
+  try {
+    return await signInWithEmailAndPassword(auth, e, password);
+  } catch (err: any) {
+    const code = err?.code as string | undefined;
+    // Newer Firebase returns auth/invalid-credential for both wrong-password
+    // and unknown-user (email-enumeration protection). Try to create; if the
+    // email already exists, it was a wrong password.
+    if (code === "auth/user-not-found" || code === "auth/invalid-credential") {
+      try {
+        return await createUserWithEmailAndPassword(auth, e, password);
+      } catch (err2: any) {
+        if (err2?.code === "auth/email-already-in-use") {
+          throw new Error("That email exists but the password is wrong.");
+        }
+        if (err2?.code === "auth/weak-password") {
+          throw new Error("Password must be at least 6 characters.");
+        }
+        throw err2;
+      }
+    }
+    throw err;
   }
 }
 
-export async function verifyEmailOtp(email: string, token: string) {
-  // ── Dev backdoor ─────────────────────────────────────────────────────────
-  if (token.trim() === DEV_MAGIC_CODE) {
-    const url = extra.supabaseUrl;
-    const anonKey = extra.supabaseAnonKey;
-    if (!url || !anonKey) throw new Error("missing supabase config");
-
-    const resp = await fetch(`${url}/functions/v1/dev-signin`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: anonKey,
-      },
-      body: JSON.stringify({ email }),
-    });
-    const body = await resp.json();
-    if (!resp.ok) throw new Error(body?.error ?? `dev-signin ${resp.status}`);
-
-    const { data, error } = await supabase.auth.verifyOtp({
-      token_hash: body.hashed_token,
-      type: "magiclink",
-    });
-    if (error) throw error;
-    return data;
-  }
-
-  // ── Real OTP path ────────────────────────────────────────────────────────
-  const { data, error } = await supabase.auth.verifyOtp({
-    email,
-    token,
-    type: "email",
-  });
-  if (error) throw error;
-  return data;
-}
-
-// Called once after first sign-in to create the family + user profile rows.
+// Called once after first sign-in to create the family + user profile +
+// username index, atomically. Replaces the create_family_and_user RPC.
 export async function completeSignup(params: {
   familyName: string;
   zip: string;
   displayName: string;
   username: string;
-}) {
-  const { error } = await supabase.rpc("create_family_and_user", {
-    _family_name: params.familyName,
-    _zip: params.zip,
-    _display_name: params.displayName,
-    _username: params.username,
+}): Promise<string> {
+  const user = auth.currentUser;
+  if (!user) throw new Error("not authenticated");
+
+  const username = params.username.trim().toLowerCase();
+  if (!/^[a-z0-9_]{3,20}$/.test(username)) throw new Error("invalid username");
+
+  const familyRef = doc(collection(db, "families"));
+  const userRef = doc(db, "users", user.uid);
+  const unameRef = doc(db, "usernames", username);
+  const nowIso = new Date().toISOString();
+
+  await runTransaction(db, async (tx) => {
+    const unameSnap = await tx.get(unameRef);
+    if (unameSnap.exists()) throw new Error("username taken");
+    tx.set(familyRef, {
+      name: params.familyName,
+      zip: params.zip,
+      avatar_url: null,
+      bio: null,
+      created_at: nowIso,
+    });
+    tx.set(userRef, {
+      family_id: familyRef.id,
+      display_name: params.displayName,
+      username,
+      push_token: null,
+      created_at: nowIso,
+    });
+    // Public-read index: powers username search + uniqueness (Firestore has
+    // no unique constraint, so the transaction enforces it).
+    tx.set(unameRef, {
+      uid: user.uid,
+      family_id: familyRef.id,
+      family_name: params.familyName,
+      display_name: params.displayName,
+    });
   });
-  if (error) throw error;
+
+  setCachedFamilyId(familyRef.id);
+  return familyRef.id;
 }
 
-// Irreversible. Calls the delete-my-account edge function which uses the
-// service role to (a) drop the family if the user is the sole member,
-// then (b) delete the auth.users row (cascades the public.users row).
-// Required by Play Store for any app with sign-in.
+// Irreversible account deletion (Play Store requirement). Best-effort
+// client-side cascade of the caller's own data, then deletes the auth user.
+// NOTE: friend edges other families hold pointing at this family are left as
+// orphans (a callable Cloud Function would clean those up — see MIGRATION.md).
 export async function deleteMyAccount(): Promise<void> {
-  const { data: sess } = await supabase.auth.getSession();
-  const token = sess.session?.access_token;
-  if (!token) throw new Error("not signed in");
+  const user = auth.currentUser;
+  if (!user) throw new Error("not signed in");
 
-  const url = extra.supabaseUrl;
-  const anonKey = extra.supabaseAnonKey;
-  if (!url || !anonKey) throw new Error("missing supabase config");
+  const userSnap = await getDoc(doc(db, "users", user.uid));
+  const familyId = userSnap.data()?.family_id as string | undefined;
+  const username = userSnap.data()?.username as string | undefined;
 
-  const resp = await fetch(`${url}/functions/v1/delete-my-account`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      apikey: anonKey,
-    },
-    body: "{}",
-  });
-  const body = await resp.json().catch(() => ({}));
-  if (!resp.ok) {
-    throw new Error(body?.error ?? `delete-my-account ${resp.status}`);
+  // Is this the sole member of the family?
+  let soleMember = true;
+  if (familyId) {
+    const members = await getDocs(
+      query(collection(db, "users"), where("family_id", "==", familyId))
+    );
+    soleMember = members.size <= 1;
   }
 
-  // Sign out locally — the auth user is already gone server-side but the
-  // local session token still exists in storage until we explicitly clear.
-  await supabase.auth.signOut();
+  if (familyId && soleMember) {
+    // Delete the family's subcollections we own (best-effort).
+    for (const sub of ["kids", "friends", "favorites", "mutes"]) {
+      const snap = await getDocs(collection(db, "families", familyId, sub));
+      await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+    }
+    // Active broadcasts by this family.
+    const bc = await getDocs(
+      query(collection(db, "broadcasts"), where("family_id", "==", familyId))
+    );
+    await Promise.all(bc.docs.map((d) => deleteDoc(d.ref)));
+    await deleteDoc(doc(db, "families", familyId)).catch(() => {});
+  }
+
+  if (username) await deleteDoc(doc(db, "usernames", username)).catch(() => {});
+  await deleteDoc(doc(db, "users", user.uid)).catch(() => {});
+
+  setCachedFamilyId(null);
+  // Requires a recent login; surfaces auth/requires-recent-login if stale.
+  await deleteUser(user);
 }

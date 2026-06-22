@@ -1,0 +1,140 @@
+rules_version = '2';
+
+// Outside (playpark) — Firestore security rules.
+// Port of the Supabase RLS model. Identity is family-level: a user belongs to
+// one family; most data is scoped to the family and its friends.
+//
+// Friendships are bidirectional edge docs: families/{a}/friends/{b}. Reads of
+// friend data are gated on those edges. Friend *requests* gate the creation of
+// the cross-family edge, so you can only become someone's friend if a request
+// existed between you.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function hasProfile() {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    // The caller's family id (from their user doc). Only call when hasProfile().
+    function myFamily() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.family_id;
+    }
+
+    function isMyFamily(fid) {
+      return hasProfile() && myFamily() == fid;
+    }
+
+    function friendEdge(a, b) {
+      return exists(/databases/$(database)/documents/families/$(a)/friends/$(b));
+    }
+
+    function reqExists(a, b) {
+      return exists(/databases/$(database)/documents/friend_requests/$(a + "_" + b));
+    }
+
+    // ─── families ───────────────────────────────────────────────────────────
+    match /families/{fid} {
+      allow read: if isMyFamily(fid) || (hasProfile() && friendEdge(myFamily(), fid));
+      allow create: if signedIn(); // onboarding (paired with users/usernames write)
+      allow update: if isMyFamily(fid);
+      allow delete: if isMyFamily(fid);
+
+      match /kids/{kidId} {
+        allow read: if isMyFamily(fid) || (hasProfile() && friendEdge(myFamily(), fid));
+        allow write: if isMyFamily(fid);
+      }
+
+      // My friend list. exists()-checks elsewhere bypass these read rules, so
+      // friend lookups still work even though only the owner can list.
+      match /friends/{otherId} {
+        allow read: if isMyFamily(fid);
+        // Either side may create the edge, but only if a friend_request existed
+        // between the two families (prevents force-friending strangers).
+        allow create: if (isMyFamily(fid) || isMyFamily(otherId)) &&
+                         (reqExists(fid, otherId) || reqExists(otherId, fid));
+        allow delete: if isMyFamily(fid) || isMyFamily(otherId);
+      }
+
+      match /favorites/{landmarkId} {
+        allow read, write: if isMyFamily(fid);
+      }
+      match /mutes/{landmarkId} {
+        allow read, write: if isMyFamily(fid);
+      }
+    }
+
+    // ─── users ──────────────────────────────────────────────────────────────
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.auth.uid == uid;
+      allow update: if request.auth.uid == uid;
+      allow delete: if request.auth.uid == uid;
+    }
+
+    // ─── usernames (public-read index: search + uniqueness) ──────────────────
+    match /usernames/{username} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+      allow update: if false;
+    }
+
+    // ─── landmarks (public catalog) ──────────────────────────────────────────
+    match /landmarks/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() &&
+        request.resource.data.created_by_family_id == myFamily();
+      allow update, delete: if signedIn() &&
+        resource.data.created_by_family_id == myFamily();
+    }
+
+    // ─── friend_requests ─────────────────────────────────────────────────────
+    match /friend_requests/{reqId} {
+      allow read: if signedIn() &&
+        (resource.data.to_family_id == myFamily() ||
+         resource.data.from_family_id == myFamily());
+      allow create, update: if signedIn() &&
+        request.resource.data.from_family_id == myFamily() &&
+        request.resource.data.to_family_id != myFamily();
+      allow delete: if signedIn() &&
+        (resource.data.to_family_id == myFamily() ||
+         resource.data.from_family_id == myFamily());
+    }
+
+    // ─── qr_nonces (capability token — the id is the secret) ─────────────────
+    match /qr_nonces/{nonce} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.family_id == myFamily();
+      allow update: if signedIn(); // mark used_at
+      allow delete: if signedIn() && resource.data.family_id == myFamily();
+    }
+
+    // ─── broadcasts ──────────────────────────────────────────────────────────
+    match /broadcasts/{bid} {
+      allow read: if hasProfile() &&
+        (isMyFamily(resource.data.family_id) ||
+         friendEdge(myFamily(), resource.data.family_id));
+      allow create: if signedIn() &&
+        request.resource.data.family_id == myFamily();
+      allow update, delete: if signedIn() &&
+        isMyFamily(resource.data.family_id);
+
+      match /rsvps/{familyId} {
+        function broadcastFamily() {
+          return get(/databases/$(database)/documents/broadcasts/$(bid)).data.family_id;
+        }
+        allow read: if hasProfile() &&
+          (isMyFamily(familyId) ||
+           isMyFamily(broadcastFamily()) ||
+           friendEdge(myFamily(), broadcastFamily()));
+        allow write: if hasProfile() && familyId == myFamily() &&
+          (isMyFamily(broadcastFamily()) || friendEdge(myFamily(), broadcastFamily()));
+      }
+    }
+  }
+}

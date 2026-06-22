@@ -56,8 +56,6 @@
       "expo-font"
     ],
     "extra": {
-      "supabaseUrl": "https://vqwzyrydhsourpkjdmot.supabase.co",
-      "supabaseAnonKey": "sb_publishable_YISeb0avhXXh6XiGs6abcA_nKt9pVTm",
       "googleMapsApiKey": "AIzaSyBDZXaECwWf8pfWlF-6ptRKKGdjUH7ibZk",
       "eas": {
         "projectId": "23abb106-0764-4489-aa6e-fd065ed1adf3"

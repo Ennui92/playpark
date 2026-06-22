@@ -11,10 +11,11 @@ web-build/
 web-build/
 
 # Firebase
-.firebaserc
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+firestore_export/
+.firebase/
 functions/node_modules/
 functions/lib/
 
@@ -25,7 +26,10 @@ functions/lib/
 # when committed, which silently breaks the build (missing google-services.json).
 # The sensitive Firebase *service account* key stays ignored below.
 GoogleService-Info.plist
-src/config/firebase.ts
+# NOTE: src/config/firebase.ts holds only the PUBLIC web SDK config (apiKey is
+# a project identifier, not a secret — guarded by Firestore rules), so it IS
+# tracked, like the old Supabase anon key in app.json. Service-account keys
+# (the real secret) are ignored below and live outside the repo.
 
 # OS
 .DS_Store

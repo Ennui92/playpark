@@ -1,11 +1,19 @@
-import { supabase } from "@/config/supabase";
-import { Family } from "@/types";
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  getCountFromServer,
+} from "firebase/firestore";
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import * as ImagePicker from "expo-image-picker";
+import { db, storage } from "@/config/firebase";
+import { Family } from "@/types";
 
-const AVATAR_BUCKET = "avatars";
-
-// Decode a base64 string to a byte array. React Native's Hermes engine
-// has global atob() (RN 0.74+), so no extra dependency is needed.
+// Decode a base64 string to a byte array. React Native's Hermes engine has a
+// global atob() (RN 0.74+), so no extra dependency is needed.
 function base64ToBytes(b64: string): Uint8Array {
   const binary = atob(b64);
   const bytes = new Uint8Array(binary.length);
@@ -13,15 +21,9 @@ function base64ToBytes(b64: string): Uint8Array {
   return bytes;
 }
 
-// Pick a square image from the library, upload to Supabase Storage at
-// `<family_id>.jpg`, and update families.avatar_url with the public URL.
-// Returns the new public URL on success.
-//
-// NOTE: we upload the image as raw bytes decoded from base64, NOT via
-// `fetch(uri).then(r => r.blob())`. The Blob path is unreliable on React
-// Native — it commonly throws "Network request failed" or hangs on the
-// Supabase Storage upload. Requesting base64 from ImagePicker and uploading
-// an ArrayBuffer is the RN-correct pattern.
+// Pick a square image, upload to Firebase Storage at avatars/<family_id>.jpg,
+// and update families.avatar_url with the download URL. We upload raw bytes
+// decoded from base64 (NOT fetch(uri).blob(), which is unreliable on RN).
 export async function pickAndUploadAvatar(familyId: string): Promise<string> {
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted) throw new Error("Photo access denied");
@@ -33,34 +35,21 @@ export async function pickAndUploadAvatar(familyId: string): Promise<string> {
     quality: 0.7,
     base64: true,
   });
-  if (result.canceled || !result.assets?.[0]) {
-    throw new Error("Cancelled");
-  }
+  if (result.canceled || !result.assets?.[0]) throw new Error("Cancelled");
+
   const b64 = result.assets[0].base64;
   if (!b64) throw new Error("Could not read image data");
   const bytes = base64ToBytes(b64);
 
-  const path = `${familyId}.jpg`;
-  const { error: upErr } = await supabase.storage
-    .from(AVATAR_BUCKET)
-    .upload(path, bytes, {
-      contentType: "image/jpeg",
-      upsert: true,
-      cacheControl: "3600",
-    });
-  if (upErr) throw upErr;
+  const path = `avatars/${familyId}.jpg`;
+  const r = storageRef(storage, path);
+  await uploadBytes(r, bytes, { contentType: "image/jpeg", cacheControl: "3600" });
 
-  // Bust the cache so the new image renders immediately rather than
-  // showing a stale upload.
-  const { data: pub } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path);
-  const cacheBusted = `${pub.publicUrl}?v=${Date.now()}`;
+  const url = await getDownloadURL(r);
+  // Bust the cache so the new image renders immediately.
+  const cacheBusted = `${url}${url.includes("?") ? "&" : "?"}v=${Date.now()}`;
 
-  const { error: famErr } = await supabase
-    .from("families")
-    .update({ avatar_url: cacheBusted })
-    .eq("id", familyId);
-  if (famErr) throw famErr;
-
+  await updateDoc(doc(db, "families", familyId), { avatar_url: cacheBusted });
   return cacheBusted;
 }
 
@@ -68,46 +57,37 @@ export async function updateFamilyProfile(
   familyId: string,
   updates: { name?: string; bio?: string | null }
 ): Promise<Family> {
-  const { data, error } = await supabase
-    .from("families")
-    .update(updates)
-    .eq("id", familyId)
-    .select("*")
-    .single();
-  if (error) throw error;
-  return data as Family;
+  await updateDoc(doc(db, "families", familyId), updates);
+  const snap = await getDoc(doc(db, "families", familyId));
+  return { id: snap.id, ...(snap.data() as Omit<Family, "id">) };
 }
 
 export async function getFamilyById(id: string): Promise<Family | null> {
-  const { data, error } = await supabase
-    .from("families")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
-  if (error) throw error;
-  return (data as Family) ?? null;
+  const snap = await getDoc(doc(db, "families", id));
+  return snap.exists() ? { id: snap.id, ...(snap.data() as Omit<Family, "id">) } : null;
 }
 
 // Quick "what is my family up to?" stats for a friend profile.
-// Returns active broadcast count + landmarks contributed.
 export async function getFamilyActivity(familyId: string): Promise<{
   activeBroadcasts: number;
   landmarksContributed: number;
 }> {
+  const nowIso = new Date().toISOString();
   const [bc, lm] = await Promise.all([
-    supabase
-      .from("broadcasts")
-      .select("id", { count: "exact", head: true })
-      .eq("family_id", familyId)
-      .is("ended_at", null)
-      .gt("expires_at", new Date().toISOString()),
-    supabase
-      .from("landmarks")
-      .select("id", { count: "exact", head: true })
-      .eq("created_by_family_id", familyId),
+    getCountFromServer(
+      query(
+        collection(db, "broadcasts"),
+        where("family_id", "==", familyId),
+        where("ended_at", "==", null),
+        where("expires_at", ">", nowIso)
+      )
+    ),
+    getCountFromServer(
+      query(collection(db, "landmarks"), where("created_by_family_id", "==", familyId))
+    ),
   ]);
   return {
-    activeBroadcasts: bc.count ?? 0,
-    landmarksContributed: lm.count ?? 0,
+    activeBroadcasts: bc.data().count,
+    landmarksContributed: lm.data().count,
   };
 }

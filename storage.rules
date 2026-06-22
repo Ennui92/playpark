@@ -1,0 +1,14 @@
+rules_version = '2';
+
+// Outside (playpark) — Storage rules. Family avatars live at
+// avatars/<family_id>.jpg. Public read (avatars aren't sensitive and are shown
+// to friends); writes restricted to the owning family.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /avatars/{file} {
+      allow read: if true;
+      allow write: if request.auth != null &&
+        file == firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.family_id + ".jpg";
+    }
+  }
+}

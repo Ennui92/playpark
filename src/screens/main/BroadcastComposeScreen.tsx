@@ -18,7 +18,8 @@ import { getLandmarkById } from "@/services/landmarks";
 import { createBroadcast } from "@/services/broadcasts";
 import { useSession } from "@/contexts/SessionContext";
 import { useT, TranslationKey } from "@/i18n";
-import { supabase } from "@/config/supabase";
+import { collection, getCountFromServer } from "firebase/firestore";
+import { db } from "@/config/firebase";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "BroadcastCompose">;
@@ -139,13 +140,12 @@ export function BroadcastComposeScreen() {
 }
 
 async function estimateAudience(myFamilyId: string): Promise<number> {
-  // The edge function pings every friend on any broadcast, so the audience
-  // is just your friend count.
-  const { count } = await supabase
-    .from("friendships")
-    .select("friend_family_id", { count: "exact", head: true })
-    .eq("family_id", myFamilyId);
-  return count ?? 0;
+  // The push fan-out pings every friend on any broadcast, so the audience is
+  // just your friend count.
+  const snap = await getCountFromServer(
+    collection(db, "families", myFamilyId, "friends")
+  );
+  return snap.data().count;
 }
 
 const styles = StyleSheet.create({

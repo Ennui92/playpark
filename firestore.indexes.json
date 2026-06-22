@@ -1,0 +1,41 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "broadcasts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "family_id", "order": "ASCENDING" },
+        { "fieldPath": "ended_at", "order": "ASCENDING" },
+        { "fieldPath": "planned_at", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "broadcasts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "family_id", "order": "ASCENDING" },
+        { "fieldPath": "ended_at", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "broadcasts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "family_id", "order": "ASCENDING" },
+        { "fieldPath": "landmark_id", "order": "ASCENDING" },
+        { "fieldPath": "ended_at", "order": "ASCENDING" },
+        { "fieldPath": "planned_at", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "friend_requests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "to_family_id", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

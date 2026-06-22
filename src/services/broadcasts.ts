@@ -1,5 +1,51 @@
-import { supabase } from "@/config/supabase";
+import {
+  collection,
+  doc,
+  addDoc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  query,
+  where,
+  orderBy,
+  limit as qLimit,
+} from "firebase/firestore";
+import { db } from "@/config/firebase";
 import { Broadcast, BroadcastFeedItem, BroadcastRsvpRow, RsvpStatus } from "@/types";
+import { getMyFamilyId } from "@/services/me";
+
+// Firestore queries must be fully satisfiable by the read rules — you can't
+// query across broadcasts you're not allowed to read. So the feed queries by
+// `family_id in [me, ...friends]` rather than "all active broadcasts" (RLS did
+// the friend filter implicitly on Supabase). `in` supports up to 30 values; we
+// cap there (rare to have more friend families — noted in MIGRATION.md).
+const IN_CAP = 30;
+
+async function audienceFamilyIds(): Promise<string[]> {
+  const me = await getMyFamilyId();
+  const friends = await getDocs(collection(db, "families", me, "friends"));
+  const ids = [me, ...friends.docs.map((d) => d.id)];
+  return ids.slice(0, IN_CAP);
+}
+
+function enrich(id: string, row: any): BroadcastFeedItem {
+  return {
+    id,
+    family_id: row.family_id,
+    landmark_id: row.landmark_id,
+    planned_at: row.planned_at,
+    message: row.message ?? null,
+    kid_ids: row.kid_ids ?? [],
+    created_at: row.created_at,
+    expires_at: row.expires_at,
+    ended_at: row.ended_at ?? null,
+    family_name: row.family_name ?? "Unknown",
+    family_avatar_url: row.family_avatar_url ?? null,
+    landmark_name: row.landmark_name ?? "Unknown",
+    landmark_emoji: row.landmark_emoji ?? "📍",
+  };
+}
 
 export async function createBroadcast(params: {
   familyId: string;
@@ -8,125 +54,104 @@ export async function createBroadcast(params: {
   message?: string | null;
   kidIds?: string[];
 }): Promise<Broadcast> {
-  const { data, error } = await supabase
-    .from("broadcasts")
-    .insert({
-      family_id: params.familyId,
-      landmark_id: params.landmarkId,
-      planned_at: params.plannedAt.toISOString(),
-      message: params.message ?? null,
-      kid_ids: params.kidIds ?? [],
-    })
-    .select("*")
-    .single();
-  if (error) throw error;
-  return data as Broadcast;
+  // "One active broadcast per family" guard (was a Postgres trigger).
+  const existing = await getMyActiveBroadcast(params.familyId);
+  if (existing) throw new Error("You already have an active outing. End it first.");
+
+  // Denormalize family + landmark fields onto the broadcast (no joins in
+  // Firestore). The feed renders straight off these.
+  const [fam, lm] = await Promise.all([
+    getDoc(doc(db, "families", params.familyId)),
+    getDoc(doc(db, "landmarks", params.landmarkId)),
+  ]);
+  const famData = fam.data() as any;
+  const lmData = lm.data() as any;
+
+  const planned = params.plannedAt;
+  const expires = new Date(planned.getTime() + 2 * 60 * 60 * 1000); // planned + 2h
+
+  const payload = {
+    family_id: params.familyId,
+    landmark_id: params.landmarkId,
+    planned_at: planned.toISOString(),
+    message: params.message ?? null,
+    kid_ids: params.kidIds ?? [],
+    created_at: new Date().toISOString(),
+    expires_at: expires.toISOString(),
+    ended_at: null as string | null,
+    family_name: famData?.name ?? "Unknown",
+    family_avatar_url: famData?.avatar_url ?? null,
+    landmark_name: lmData?.name ?? "Unknown",
+    landmark_emoji: lmData?.emoji ?? "📍",
+  };
+  const ref = await addDoc(collection(db, "broadcasts"), payload);
+  return enrich(ref.id, payload);
 }
 
 export async function endBroadcast(id: string, finalMessage?: string | null) {
   const update: Record<string, any> = { ended_at: new Date().toISOString() };
   if (finalMessage !== undefined) update.message = finalMessage;
-  const { error } = await supabase
-    .from("broadcasts")
-    .update(update)
-    .eq("id", id);
-  if (error) throw error;
+  await updateDoc(doc(db, "broadcasts", id), update);
 }
 
-// Update the broadcast's status message ("Running 10 min late", etc.).
-// Triggers a push to RSVPed friends via dispatch_broadcast_update_push().
-export async function updateBroadcastMessage(
-  id: string,
-  message: string | null
-) {
-  const { error } = await supabase
-    .from("broadcasts")
-    .update({ message })
-    .eq("id", id);
-  if (error) throw error;
+export async function updateBroadcastMessage(id: string, message: string | null) {
+  await updateDoc(doc(db, "broadcasts", id), { message });
 }
 
-// Feed = active broadcasts by self + friend families, enriched with
-// family + landmark for rendering. RLS does the friend-visibility filter.
+// Feed = active broadcasts by self + friend families. We filter expires_at
+// client-side to avoid a second inequality (Firestore allows one range field).
 export async function getActiveFeed(): Promise<BroadcastFeedItem[]> {
-  const { data, error } = await supabase
-    .from("broadcasts")
-    .select(`
-      *,
-      families:family_id ( name, avatar_url ),
-      landmarks:landmark_id ( name, emoji )
-    `)
-    .is("ended_at", null)
-    .gt("expires_at", new Date().toISOString())
-    .order("planned_at", { ascending: true });
-
-  if (error) throw error;
-
-  return (data ?? []).map((row: any) => ({
-    ...row,
-    family_name: row.families?.name ?? "Unknown",
-    family_avatar_url: row.families?.avatar_url ?? null,
-    landmark_name: row.landmarks?.name ?? "Unknown",
-    landmark_emoji: row.landmarks?.emoji ?? "📍",
-  })) as BroadcastFeedItem[];
+  const audience = await audienceFamilyIds();
+  if (audience.length === 0) return [];
+  const snap = await getDocs(
+    query(
+      collection(db, "broadcasts"),
+      where("family_id", "in", audience),
+      where("ended_at", "==", null),
+      orderBy("planned_at", "asc")
+    )
+  );
+  const nowIso = new Date().toISOString();
+  return snap.docs
+    .map((d) => enrich(d.id, d.data()))
+    .filter((b) => b.expires_at > nowIso);
 }
 
-// My single active broadcast (any landmark), or null. The "one active
-// broadcast" guard is global per family, so this is how a screen knows
-// whether I'm already out — even if I'm looking at a different place.
+// My single active broadcast (any landmark), or null. The "one active" guard
+// is global per family, so this is how a screen knows whether I'm already out.
 export async function getMyActiveBroadcast(
   familyId: string
 ): Promise<BroadcastFeedItem | null> {
-  const { data, error } = await supabase
-    .from("broadcasts")
-    .select(`
-      *,
-      families:family_id ( name, avatar_url ),
-      landmarks:landmark_id ( name, emoji )
-    `)
-    .eq("family_id", familyId)
-    .is("ended_at", null)
-    .gt("expires_at", new Date().toISOString())
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!data) return null;
-  const row: any = data;
-  return {
-    ...row,
-    family_name: row.families?.name ?? "Unknown",
-    family_avatar_url: row.families?.avatar_url ?? null,
-    landmark_name: row.landmarks?.name ?? "Unknown",
-    landmark_emoji: row.landmarks?.emoji ?? "📍",
-  } as BroadcastFeedItem;
+  const snap = await getDocs(
+    query(
+      collection(db, "broadcasts"),
+      where("family_id", "==", familyId),
+      where("ended_at", "==", null),
+      orderBy("created_at", "desc"),
+      qLimit(5)
+    )
+  );
+  const nowIso = new Date().toISOString();
+  const live = snap.docs.map((d) => enrich(d.id, d.data())).filter((b) => b.expires_at > nowIso);
+  return live[0] ?? null;
 }
 
 export async function getActiveBroadcastsForLandmark(
   landmarkId: string
 ): Promise<BroadcastFeedItem[]> {
-  const { data, error } = await supabase
-    .from("broadcasts")
-    .select(`
-      *,
-      families:family_id ( name, avatar_url ),
-      landmarks:landmark_id ( name, emoji )
-    `)
-    .eq("landmark_id", landmarkId)
-    .is("ended_at", null)
-    .gt("expires_at", new Date().toISOString())
-    .order("planned_at", { ascending: true });
-
-  if (error) throw error;
-
-  return (data ?? []).map((row: any) => ({
-    ...row,
-    family_name: row.families?.name ?? "Unknown",
-    family_avatar_url: row.families?.avatar_url ?? null,
-    landmark_name: row.landmarks?.name ?? "Unknown",
-    landmark_emoji: row.landmarks?.emoji ?? "📍",
-  })) as BroadcastFeedItem[];
+  const audience = await audienceFamilyIds();
+  if (audience.length === 0) return [];
+  const snap = await getDocs(
+    query(
+      collection(db, "broadcasts"),
+      where("family_id", "in", audience),
+      where("landmark_id", "==", landmarkId),
+      where("ended_at", "==", null),
+      orderBy("planned_at", "asc")
+    )
+  );
+  const nowIso = new Date().toISOString();
+  return snap.docs.map((d) => enrich(d.id, d.data())).filter((b) => b.expires_at > nowIso);
 }
 
 // ─── RSVPs ────────────────────────────────────────────────────────────────
@@ -135,49 +160,48 @@ export async function setBroadcastRsvp(
   broadcastId: string,
   status: RsvpStatus
 ): Promise<void> {
-  const { error } = await supabase.rpc("set_broadcast_rsvp", {
-    _broadcast_id: broadcastId,
-    _status: status,
-  });
-  if (error) throw error;
+  const myFamily = await getMyFamilyId();
+  const fam = await getDoc(doc(db, "families", myFamily));
+  const famData = fam.data() as any;
+  const ref = doc(db, "broadcasts", broadcastId, "rsvps", myFamily);
+  const prev = await getDoc(ref);
+  await setDoc(
+    ref,
+    {
+      broadcast_id: broadcastId,
+      family_id: myFamily,
+      status,
+      created_at: prev.exists() ? (prev.data() as any).created_at : new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      family_name: famData?.name ?? "Someone",
+      family_avatar_url: famData?.avatar_url ?? null,
+    },
+    { merge: true }
+  );
 }
 
-// All RSVPs visible to me for a broadcast, enriched with the responder's
-// family name. RLS handles whether I'm allowed to see them (I am, if I'm
-// the broadcaster or a friend of the broadcaster).
 export async function getRsvpsForBroadcast(
   broadcastId: string
 ): Promise<BroadcastRsvpRow[]> {
-  const { data, error } = await supabase
-    .from("broadcast_rsvps")
-    .select(`
-      broadcast_id, family_id, status, created_at, updated_at,
-      families:family_id ( name, avatar_url )
-    `)
-    .eq("broadcast_id", broadcastId);
-  if (error) throw error;
-  return (data ?? []).map((r: any) => ({
-    broadcast_id: r.broadcast_id,
-    family_id: r.family_id,
-    status: r.status,
-    created_at: r.created_at,
-    updated_at: r.updated_at,
-    family_name: r.families?.name ?? "Someone",
-    family_avatar_url: r.families?.avatar_url ?? null,
-  })) as BroadcastRsvpRow[];
+  const snap = await getDocs(collection(db, "broadcasts", broadcastId, "rsvps"));
+  return snap.docs.map((d) => {
+    const r = d.data() as any;
+    return {
+      broadcast_id: broadcastId,
+      family_id: r.family_id,
+      status: r.status,
+      created_at: r.created_at,
+      updated_at: r.updated_at,
+      family_name: r.family_name ?? "Someone",
+      family_avatar_url: r.family_avatar_url ?? null,
+    };
+  });
 }
 
-// What's MY current RSVP on a given broadcast, if any?
 export async function getMyRsvp(
   broadcastId: string,
   myFamilyId: string
 ): Promise<RsvpStatus | null> {
-  const { data, error } = await supabase
-    .from("broadcast_rsvps")
-    .select("status")
-    .eq("broadcast_id", broadcastId)
-    .eq("family_id", myFamilyId)
-    .maybeSingle();
-  if (error) throw error;
-  return (data?.status as RsvpStatus) ?? null;
+  const snap = await getDoc(doc(db, "broadcasts", broadcastId, "rsvps", myFamilyId));
+  return snap.exists() ? ((snap.data() as any).status as RsvpStatus) : null;
 }

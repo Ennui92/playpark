@@ -5,7 +5,8 @@ import { useNavigation } from "@react-navigation/native";
 import { Button } from "@/components/Button";
 import { showDialog } from "@/components/dialog";
 import { ZipPicker } from "@/components/ZipPicker";
-import { supabase } from "@/config/supabase";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "@/config/firebase";
 import { useSession } from "@/contexts/SessionContext";
 import { useT } from "@/i18n";
 import { isLikelyPostalCode, normalizePostalCode } from "@/utils/postal";
@@ -21,15 +22,16 @@ export function EditNeighborhoodScreen() {
   async function save() {
     if (!family || !zip || !isLikelyPostalCode(zip)) return;
     setSaving(true);
-    const { error } = await supabase
-      .from("families")
-      .update({ zip: normalizePostalCode(zip) })
-      .eq("id", family.id);
-    setSaving(false);
-    if (error) {
-      showDialog(t("nb.couldntUpdate"), error.message);
+    try {
+      await updateDoc(doc(db, "families", family.id), {
+        zip: normalizePostalCode(zip),
+      });
+    } catch (e: any) {
+      setSaving(false);
+      showDialog(t("nb.couldntUpdate"), e?.message ?? "");
       return;
     }
+    setSaving(false);
     await refreshProfile();
     nav.goBack();
   }

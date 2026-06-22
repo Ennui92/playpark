@@ -55,6 +55,10 @@ export const en = {
   "signin.differentEmail": "Use a different email",
   "signin.invalidCode": "Invalid code",
   "signin.checkEmail": "Check your email and try again.",
+  "signin.passwordPlaceholder": "Password",
+  "signin.continue": "Continue",
+  "signin.passwordHint": "New here? Pick any password — we'll create your account.",
+  "signin.signinFailed": "Could not sign in",
 
   // ─── Onboarding ─────────────────────────────────────────────────────────
   "onb.title": "Set up your account.",
@@ -328,6 +332,10 @@ export const de: Record<TranslationKey, string> = {
   "signin.differentEmail": "Andere E-Mail verwenden",
   "signin.invalidCode": "Ungültiger Code",
   "signin.checkEmail": "Prüf deine E-Mail und versuch es nochmal.",
+  "signin.passwordPlaceholder": "Passwort",
+  "signin.continue": "Weiter",
+  "signin.passwordHint": "Neu hier? Wähl ein Passwort – wir legen dein Konto an.",
+  "signin.signinFailed": "Anmeldung fehlgeschlagen",
 
   "onb.title": "Richte dein Konto ein.",
   "onb.sub": "Ein paar Angaben, damit Freunde dich finden und du teilen kannst, wohin du unterwegs bist.",

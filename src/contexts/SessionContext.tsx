@@ -6,36 +6,31 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { Session } from "@supabase/supabase-js";
-import { supabase } from "@/config/supabase";
+import { onAuthStateChanged, signOut as fbSignOut, type User } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/config/firebase";
 import { AppUser, Family } from "@/types";
 import { registerForPushNotifications } from "@/services/push";
 import { getPendingRequestCount } from "@/services/friends";
+import { setCachedFamilyId } from "@/services/me";
 
 // Three states the app cares about:
-//   1. loading     — initial session check in flight
+//   1. loading     — initial auth check in flight
 //   2. signed out  — no session
-//   3. signed in, onboarded=false  — has auth but no family row yet
+//   3. signed in, onboarded=false  — has auth but no user/family doc yet
 //   4. signed in, onboarded=true   — full profile available
 //
-// The navigator branches on these.
+// The navigator branches on these. `session` is the Firebase User.
 
 interface SessionContextValue {
-  session: Session | null;
+  session: User | null;
   user: AppUser | null;
   family: Family | null;
   loading: boolean;
-  // True when booting found a session but the profile fetch failed (network)
-  // — distinct from "no profile yet" (a genuine new user). Lets the UI show a
-  // Retry instead of hanging or wrongly sending an onboarded user to signup.
   initError: boolean;
   retryInit: () => void;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
-  // Badge counts surfaced on the bottom tabs. Refreshed when:
-  //   - app boots / loads profile
-  //   - we receive a push (handled in RootNavigator)
-  //   - any screen calls refreshBadges() after a write
   pendingRequestCount: number;
   refreshBadges: () => Promise<void>;
 }
@@ -43,7 +38,7 @@ interface SessionContextValue {
 const SessionContext = createContext<SessionContextValue | undefined>(undefined);
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<User | null>(null);
   const [user, setUser] = useState<AppUser | null>(null);
   const [family, setFamily] = useState<Family | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,51 +46,34 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
 
   async function loadProfile(authUserId: string) {
-    // IMPORTANT: surface errors (don't swallow). A thrown error here means
-    // a *network/db failure*, which the caller treats as initError — NOT the
-    // same as a missing row (a genuine new user who needs onboarding).
-    const { data: userRow, error: userErr } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", authUserId)
-      .maybeSingle();
-    if (userErr) throw userErr;
+    // IMPORTANT: surface errors (don't swallow). A thrown error here means a
+    // network/db failure (→ initError), distinct from a missing doc (a genuine
+    // new user who needs onboarding).
+    const userSnap = await getDoc(doc(db, "users", authUserId));
 
-    if (!userRow) {
+    if (!userSnap.exists()) {
       setUser(null);
       setFamily(null);
+      setCachedFamilyId(null);
       setPendingRequestCount(0);
       return;
     }
 
-    const { data: familyRow, error: famErr } = await supabase
-      .from("families")
-      .select("*")
-      .eq("id", (userRow as AppUser).family_id)
-      .maybeSingle();
-    if (famErr) throw famErr;
+    const userRow = { id: userSnap.id, ...(userSnap.data() as Omit<AppUser, "id">) };
+    const famSnap = await getDoc(doc(db, "families", userRow.family_id));
 
-    // Commit user + family together so we never render a half-loaded
-    // profile (user set but family null → blank Home).
-    setUser(userRow as AppUser);
-    setFamily((familyRow as Family) ?? null);
+    setUser(userRow);
+    setFamily(famSnap.exists() ? { id: famSnap.id, ...(famSnap.data() as Omit<Family, "id">) } : null);
+    setCachedFamilyId(userRow.family_id);
 
-    // Fire-and-forget push registration. Failures are logged but don't
-    // block sign-in — the MeScreen "Test push setup" button lets the
-    // user re-run and see the actual error if pushes aren't arriving.
-    registerForPushNotifications((userRow as AppUser).id).catch((e) => {
+    // Fire-and-forget push registration. Failures are logged, not blocking.
+    registerForPushNotifications(userRow.id).catch((e) => {
       console.warn("[push] auto-register failed:", e?.message ?? e);
     });
 
-    // Initial badge count.
-    if (familyRow) {
-      getPendingRequestCount((familyRow as Family).id)
-        .then(setPendingRequestCount)
-        .catch(() => {});
-    }
+    getPendingRequestCount(userRow.family_id).then(setPendingRequestCount).catch(() => {});
   }
 
-  // Bound a promise so the splash can't wait the full 30s request timeout.
   function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
     return Promise.race([
       p,
@@ -105,17 +83,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     ]);
   }
 
-  // Boot: read the session and load the profile. Always resolves `loading`
-  // (try/finally) so the splash spinner can never hang. On failure it sets
-  // initError so the UI can offer a Retry.
+  // Boot is driven by the onAuthStateChanged listener below (Firebase restores
+  // the persisted session asynchronously). retryInit re-runs the profile load.
   const bootstrap = useCallback(async () => {
     const BOOT_TIMEOUT_MS = 8000;
     setInitError(false);
     try {
-      const { data } = await withTimeout(supabase.auth.getSession(), BOOT_TIMEOUT_MS);
-      setSession(data.session);
-      if (data.session?.user) {
-        await withTimeout(loadProfile(data.session.user.id), BOOT_TIMEOUT_MS);
+      if (auth.currentUser) {
+        await withTimeout(loadProfile(auth.currentUser.uid), BOOT_TIMEOUT_MS);
       }
     } catch (e: any) {
       console.warn("[session] init failed:", e?.message ?? e);
@@ -133,8 +108,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   async function refreshBadgesInternal() {
     if (!family) return;
     try {
-      const n = await getPendingRequestCount(family.id);
-      setPendingRequestCount(n);
+      setPendingRequestCount(await getPendingRequestCount(family.id));
     } catch {
       // ignore
     }
@@ -143,35 +117,36 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    bootstrap();
-
-    // Last-resort safety net: even if something above never settles, never
-    // leave the splash spinner up for more than ~10s.
+    // Last-resort safety net: never leave the splash spinner up forever.
     const safety = setTimeout(() => {
       if (mounted) setLoading(false);
     }, 10000);
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_e, s) => {
-      setSession(s);
-      if (s?.user) {
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      setSession(u);
+      if (u) {
+        setInitError(false);
         try {
-          await loadProfile(s.user.id);
+          await loadProfile(u.uid);
         } catch (e: any) {
-          console.warn("[session] profile refresh failed:", e?.message ?? e);
+          console.warn("[session] profile load failed:", e?.message ?? e);
+          setInitError(true);
         }
       } else {
         setUser(null);
         setFamily(null);
+        setCachedFamilyId(null);
         setPendingRequestCount(0);
       }
+      if (mounted) setLoading(false);
     });
 
     return () => {
       mounted = false;
       clearTimeout(safety);
-      sub.subscription.unsubscribe();
+      unsub();
     };
-  }, [bootstrap]);
+  }, []);
 
   const value = useMemo<SessionContextValue>(
     () => ({
@@ -183,11 +158,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       retryInit,
       pendingRequestCount,
       refreshProfile: async () => {
-        if (session?.user) await loadProfile(session.user.id);
+        if (session) await loadProfile(session.uid);
       },
       refreshBadges: refreshBadgesInternal,
       signOut: async () => {
-        await supabase.auth.signOut();
+        await fbSignOut(auth);
       },
     }),
     [session, user, family, loading, initError, retryInit, pendingRequestCount]
