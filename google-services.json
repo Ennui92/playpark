@@ -1,26 +1,44 @@
 {
   "project_info": {
-    "project_number": "705720554840",
-    "project_id": "nearme-5827e",
-    "storage_bucket": "nearme-5827e.firebasestorage.app"
+    "project_number": "212926758172",
+    "project_id": "outside-playpark-ermis",
+    "storage_bucket": "outside-playpark-ermis.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:705720554840:android:1fb8b723792e45fe35012d",
+        "mobilesdk_app_id": "1:212926758172:android:411d1e643871ece4c1ced9",
         "android_client_info": {
           "package_name": "dev.ermis.outside"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "212926758172-1rdthjpbr1rkgf3cn58p087oacfjrn6u.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "dev.ermis.outside",
+            "certificate_hash": "5fffa9604f807e3e26d0ddb7cc90ecbe6cc18ec0"
+          }
+        },
+        {
+          "client_id": "212926758172-k18ca750uaphk6i90j8ct31rbjp6usr5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyAjZPKYts0gmkV-3JYnonIJ_kLUGajszns"
+          "current_key": "AIzaSyD-klu1QwXqpFaZLwoRz5wTu_suSW2zVVw"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "212926758172-k18ca750uaphk6i90j8ct31rbjp6usr5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

@@ -53,7 +53,8 @@
           "cameraPermission": "Outside uses your camera to scan friend QR codes."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "@react-native-google-signin/google-signin"
     ],
     "extra": {
       "googleMapsApiKey": "AIzaSyBDZXaECwWf8pfWlF-6ptRKKGdjUH7ibZk",

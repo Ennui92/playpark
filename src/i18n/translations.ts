@@ -59,6 +59,7 @@ export const en = {
   "signin.continue": "Continue",
   "signin.passwordHint": "New here? Pick any password — we'll create your account.",
   "signin.signinFailed": "Could not sign in",
+  "signin.continueGoogle": "Continue with Google",
 
   // ─── Onboarding ─────────────────────────────────────────────────────────
   "onb.title": "Set up your account.",
@@ -336,6 +337,7 @@ export const de: Record<TranslationKey, string> = {
   "signin.continue": "Weiter",
   "signin.passwordHint": "Neu hier? Wähl ein Passwort – wir legen dein Konto an.",
   "signin.signinFailed": "Anmeldung fehlgeschlagen",
+  "signin.continueGoogle": "Mit Google fortfahren",
 
   "onb.title": "Richte dein Konto ein.",
   "onb.sub": "Ein paar Angaben, damit Freunde dich finden und du teilen kannst, wohin du unterwegs bist.",

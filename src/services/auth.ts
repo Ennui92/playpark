@@ -2,6 +2,8 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   deleteUser,
+  GoogleAuthProvider,
+  signInWithCredential,
 } from "firebase/auth";
 import {
   doc,
@@ -13,8 +15,41 @@ import {
   query,
   where,
 } from "firebase/firestore";
+import {
+  GoogleSignin,
+  statusCodes,
+} from "@react-native-google-signin/google-signin";
 import { auth, db } from "@/config/firebase";
 import { setCachedFamilyId } from "@/services/me";
+
+// Native Google Sign-In configuration. The webClientId is the *Web* OAuth
+// client from Firebase (not the Android client) — Firebase verifies the
+// returned idToken against it. Configured once at module load.
+GoogleSignin.configure({
+  webClientId:
+    "212926758172-k18ca750uaphk6i90j8ct31rbjp6usr5.apps.googleusercontent.com",
+});
+
+// Native Google Sign-In → Firebase credential exchange. Returns the same
+// UserCredential shape as the email/password flow, so SessionContext picks it
+// up the same way. A brand-new Google user lands on Onboarding (no profile
+// doc yet) — that's expected. Returns undefined if the user cancels.
+export async function signInWithGoogle() {
+  try {
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    const res = await GoogleSignin.signIn();
+    // The idToken location moved across library versions: newer returns
+    // { data: { idToken } }, older returns { idToken }. Read defensively.
+    const idToken = (res as any)?.data?.idToken ?? (res as any)?.idToken;
+    if (!idToken) throw new Error("No ID token returned from Google.");
+    const cred = GoogleAuthProvider.credential(idToken);
+    return await signInWithCredential(auth, cred);
+  } catch (err: any) {
+    // User backed out of the Google sheet — not an error worth surfacing.
+    if (err?.code === statusCodes.SIGN_IN_CANCELLED) return;
+    throw err;
+  }
+}
 
 // ── Auth model note ─────────────────────────────────────────────────────────
 // Supabase used passwordless email OTP (6-digit code). Firebase Auth has no

@@ -12,7 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { showDialog } from "@/components/dialog";
 import { LanguagePicker } from "@/components/LanguagePicker";
-import { signInOrCreate } from "@/services/auth";
+import { signInOrCreate, signInWithGoogle } from "@/services/auth";
 import { useT } from "@/i18n";
 import { COLORS, FONT_SIZE, RADIUS, SPACING } from "@/utils/theme";
 
@@ -21,6 +21,7 @@ export function SignInScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   async function submit() {
     if (!email.includes("@") || password.length < 6) return;
@@ -32,6 +33,19 @@ export function SignInScreen() {
       showDialog(t("signin.signinFailed"), e?.message ?? t("signin.checkEmail"));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function googleSubmit() {
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+      // SessionContext picks up the new session automatically. A brand-new
+      // Google user lands on Onboarding to create their family.
+    } catch (e: any) {
+      showDialog(t("signin.signinFailed"), e?.message);
+    } finally {
+      setGoogleLoading(false);
     }
   }
 
@@ -77,6 +91,13 @@ export function SignInScreen() {
             loading={loading}
             disabled={!email.includes("@") || password.length < 6}
             style={{ marginTop: SPACING.md }}
+          />
+          <Button
+            title={t("signin.continueGoogle")}
+            onPress={googleSubmit}
+            variant="secondary"
+            loading={googleLoading}
+            style={{ marginTop: SPACING.sm }}
           />
           <View style={{ marginTop: SPACING.xl }}>
             <LanguagePicker />

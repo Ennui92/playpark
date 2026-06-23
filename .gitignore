@@ -31,6 +31,9 @@ GoogleService-Info.plist
 # tracked, like the old Supabase anon key in app.json. Service-account keys
 # (the real secret) are ignored below and live outside the repo.
 
+# EAS local credentials (keystore is *.jks above; this holds its passwords)
+credentials.json
+
 # OS
 .DS_Store
 *.swp
