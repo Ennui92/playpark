@@ -12,18 +12,13 @@ import * as ImagePicker from "expo-image-picker";
 import { db, storage } from "@/config/firebase";
 import { Family } from "@/types";
 
-// Decode a base64 string to a byte array. React Native's Hermes engine has a
-// global atob() (RN 0.74+), so no extra dependency is needed.
-function base64ToBytes(b64: string): Uint8Array {
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
 // Pick a square image, upload to Firebase Storage at avatars/<family_id>.jpg,
-// and update families.avatar_url with the download URL. We upload raw bytes
-// decoded from base64 (NOT fetch(uri).blob(), which is unreliable on RN).
+// and update families.avatar_url with the download URL.
+//
+// We upload a real Blob from fetch(uri).blob(). Passing a Uint8Array/ArrayBuffer
+// to uploadBytes makes the SDK do `new Blob([arrayBuffer])`, which React Native
+// does not support ("creating blob from arraybuffer and arraybufferview are not
+// supported"). A fetched Blob sidesteps that and is the standard Expo path.
 export async function pickAndUploadAvatar(familyId: string): Promise<string> {
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted) throw new Error("Photo access denied");
@@ -33,17 +28,16 @@ export async function pickAndUploadAvatar(familyId: string): Promise<string> {
     allowsEditing: true,
     aspect: [1, 1],
     quality: 0.7,
-    base64: true,
   });
   if (result.canceled || !result.assets?.[0]) throw new Error("Cancelled");
 
-  const b64 = result.assets[0].base64;
-  if (!b64) throw new Error("Could not read image data");
-  const bytes = base64ToBytes(b64);
+  const uri = result.assets[0].uri;
+  if (!uri) throw new Error("Could not read image");
+  const blob = await (await fetch(uri)).blob();
 
   const path = `avatars/${familyId}.jpg`;
   const r = storageRef(storage, path);
-  await uploadBytes(r, bytes, { contentType: "image/jpeg", cacheControl: "3600" });
+  await uploadBytes(r, blob, { contentType: "image/jpeg", cacheControl: "3600" });
 
   const url = await getDownloadURL(r);
   // Bust the cache so the new image renders immediately.
