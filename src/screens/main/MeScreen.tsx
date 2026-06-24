@@ -24,7 +24,7 @@ const extra = (Constants.expoConfig?.extra ?? {}) as {
   buildNumber?: string;
   gitSha?: string;
 };
-const APP_VERSION = Constants.expoConfig?.version ?? "—";
+const APP_VERSION = Constants.expoConfig?.version ?? "?";
 const BUILD_NUMBER = extra.buildNumber ?? "local";
 const GIT_SHA = (extra.gitSha ?? "").slice(0, 7);
 
@@ -120,14 +120,15 @@ export function MeScreen() {
         </TouchableOpacity>
 
         <View style={styles.card}>
+          <Row label={t("me.familyName")} value={family?.name ?? "-"} />
           <TouchableOpacity
             style={styles.rowTap}
             onPress={() => nav.navigate("EditNeighborhood")}
           >
             <Text style={styles.rowLabel}>{t("me.neighborhood")}</Text>
-            <Text style={styles.rowValueLink}>{family?.zip ?? "—"} ›</Text>
+            <Text style={styles.rowValueLink}>{family?.zip ?? "-"} ›</Text>
           </TouchableOpacity>
-          <Row label={t("me.username")} value={`@${user?.username ?? "—"}`} />
+          <Row label={t("me.username")} value={`@${user?.username ?? "-"}`} />
         </View>
 
         <Text style={styles.sectionLabel}>{t("me.language")}</Text>

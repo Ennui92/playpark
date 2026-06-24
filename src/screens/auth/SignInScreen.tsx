@@ -9,6 +9,7 @@ import {
   ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { GoogleSigninButton } from "@react-native-google-signin/google-signin";
 import { Button } from "@/components/Button";
 import { showDialog } from "@/components/dialog";
 import { LanguagePicker } from "@/components/LanguagePicker";
@@ -92,13 +93,15 @@ export function SignInScreen() {
             disabled={!email.includes("@") || password.length < 6}
             style={{ marginTop: SPACING.md }}
           />
-          <Button
-            title={t("signin.continueGoogle")}
-            onPress={googleSubmit}
-            variant="secondary"
-            loading={googleLoading}
-            style={{ marginTop: SPACING.sm }}
-          />
+          <View style={styles.googleRow}>
+            <GoogleSigninButton
+              size={GoogleSigninButton.Size.Wide}
+              color={GoogleSigninButton.Color.Dark}
+              onPress={googleSubmit}
+              disabled={googleLoading}
+              style={styles.googleButton}
+            />
+          </View>
           <View style={{ marginTop: SPACING.xl }}>
             <LanguagePicker />
           </View>
@@ -139,5 +142,15 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.sm,
     textAlign: "center",
     marginTop: SPACING.sm,
+  },
+  googleRow: {
+    marginTop: SPACING.sm,
+    alignItems: "center",
+  },
+  // GoogleSigninButton renders at its own intrinsic height; we stretch it
+  // wide so it lines up visually with the email "Continue" button above.
+  googleButton: {
+    width: "100%",
+    height: 52,
   },
 });
