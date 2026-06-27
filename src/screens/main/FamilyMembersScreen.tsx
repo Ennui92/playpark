@@ -20,16 +20,18 @@ import {
   addFamilyMember,
   updateFamilyMember,
   removeFamilyMember,
-  MEMBER_EMOJIS,
+  AVATAR_BASES,
+  SKIN_TONES,
+  isToneable,
+  withSkinTone,
+  splitTone,
 } from "@/services/members";
 import { Member, MemberRole } from "@/types";
 import { useT } from "@/i18n";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 
-// "" = default (no modifier); the rest are the Fitzpatrick skin-tone modifiers
-// that combine with a base person emoji (e.g. "👩" + "🏽" = "👩🏽").
-const SKIN_TONES = ["", "🏻", "🏼", "🏽", "🏾", "🏿"];
-const TONEABLE = new Set(["👶", "🧒", "👦", "👧", "👩", "👨", "🧑", "🧕", "👵", "👴"]);
+// "" = default (no modifier), then the five Fitzpatrick tones.
+const TONE_OPTIONS = ["", ...SKIN_TONES];
 
 export function FamilyMembersScreen() {
   const nav = useNavigation();
@@ -46,11 +48,13 @@ export function FamilyMembersScreen() {
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [role, setRole] = useState<MemberRole>("child");
-  const [emoji, setEmoji] = useState<string>("🧒");
+  // Avatar is two axes: the person/hair base + an optional skin tone.
+  const [avatarBase, setAvatarBase] = useState<string>("🧒");
+  const [avatarTone, setAvatarTone] = useState<string>("");
   const [age, setAge] = useState("");
-  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
-  // When set, show the skin-tone variants of this base emoji.
-  const [tonePickerFor, setTonePickerFor] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const avatarEmoji = withSkinTone(avatarBase, avatarTone);
 
   const load = useCallback(async () => {
     if (!family) return;
@@ -69,10 +73,10 @@ export function FamilyMembersScreen() {
     setEditId(null);
     setName("");
     setRole("child");
-    setEmoji("🧒");
+    setAvatarBase("🧒");
+    setAvatarTone("");
     setAge("");
-    setEmojiPickerOpen(false);
-    setTonePickerFor(null);
+    setPickerOpen(false);
     setEditorOpen(true);
   }
 
@@ -80,10 +84,11 @@ export function FamilyMembersScreen() {
     setEditId(m.id);
     setName(m.name);
     setRole(m.role);
-    setEmoji(m.emoji);
+    const { base, tone } = splitTone(m.emoji);
+    setAvatarBase(base);
+    setAvatarTone(tone);
     setAge(m.birth_year ? String(Math.max(0, thisYear - m.birth_year)) : "");
-    setEmojiPickerOpen(false);
-    setTonePickerFor(null);
+    setPickerOpen(false);
     setEditorOpen(true);
   }
 
@@ -98,11 +103,16 @@ export function FamilyMembersScreen() {
         await updateFamilyMember(family.id, editId, {
           name: name.trim(),
           role,
-          emoji,
+          emoji: avatarEmoji,
           birth_year: birthYear,
         });
       } else {
-        await addFamilyMember(family.id, { name: name.trim(), role, emoji, birthYear });
+        await addFamilyMember(family.id, {
+          name: name.trim(),
+          role,
+          emoji: avatarEmoji,
+          birthYear,
+        });
       }
       setEditorOpen(false);
       await load();
@@ -177,59 +187,63 @@ export function FamilyMembersScreen() {
               {editorOpen ? (
                 <View style={styles.editor}>
                   <Text style={styles.label}>{t("fam.avatarLabel")}</Text>
-                  {emojiPickerOpen ? (
+                  {pickerOpen ? (
                     <View>
+                      {/* Person + hair */}
                       <ScrollView
                         horizontal
                         showsHorizontalScrollIndicator={false}
                         contentContainerStyle={styles.emojiRow}
                       >
-                        {MEMBER_EMOJIS.map((e) => (
-                          <TouchableOpacity
-                            key={e}
-                            style={[styles.emojiBtn, emoji === e && styles.emojiBtnActive]}
-                            onPress={() => {
-                              setEmoji(e);
-                              setEmojiPickerOpen(false);
-                              setTonePickerFor(null);
-                            }}
-                            onLongPress={() => {
-                              if (TONEABLE.has(e)) setTonePickerFor(e);
-                            }}
-                          >
-                            <Text style={styles.emojiBtnText}>{e}</Text>
-                          </TouchableOpacity>
-                        ))}
+                        {AVATAR_BASES.map((base) => {
+                          const active = base === avatarBase;
+                          return (
+                            <TouchableOpacity
+                              key={base}
+                              style={[styles.emojiBtn, active && styles.emojiBtnActive]}
+                              onPress={() => setAvatarBase(base)}
+                            >
+                              <Text style={styles.emojiBtnText}>
+                                {withSkinTone(base, avatarTone)}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
                       </ScrollView>
-                      {tonePickerFor ? (
-                        <View style={styles.toneRow}>
-                          {SKIN_TONES.map((tone) => {
-                            const toned = tone ? tonePickerFor + tone : tonePickerFor;
-                            return (
-                              <TouchableOpacity
-                                key={tone || "base"}
-                                style={[styles.emojiBtn, emoji === toned && styles.emojiBtnActive]}
-                                onPress={() => {
-                                  setEmoji(toned);
-                                  setEmojiPickerOpen(false);
-                                  setTonePickerFor(null);
-                                }}
-                              >
-                                <Text style={styles.emojiBtnText}>{toned}</Text>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </View>
-                      ) : (
-                        <Text style={styles.toneHint}>{t("fam.holdForTones")}</Text>
+
+                      {/* Skin tone (only for people) */}
+                      {isToneable(avatarBase) && (
+                        <>
+                          <Text style={styles.toneLabel}>{t("fam.skinTone")}</Text>
+                          <View style={styles.toneRow}>
+                            {TONE_OPTIONS.map((tone) => {
+                              const active = tone === avatarTone;
+                              return (
+                                <TouchableOpacity
+                                  key={tone || "default"}
+                                  style={[styles.emojiBtn, active && styles.emojiBtnActive]}
+                                  onPress={() => setAvatarTone(tone)}
+                                >
+                                  <Text style={styles.emojiBtnText}>
+                                    {withSkinTone(avatarBase, tone)}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                        </>
                       )}
+
+                      <TouchableOpacity onPress={() => setPickerOpen(false)} style={styles.doneBtn}>
+                        <Text style={styles.doneText}>{t("common.done")}</Text>
+                      </TouchableOpacity>
                     </View>
                   ) : (
                     <TouchableOpacity
                       style={styles.selectedAvatar}
-                      onPress={() => setEmojiPickerOpen(true)}
+                      onPress={() => setPickerOpen(true)}
                     >
-                      <Text style={styles.selectedAvatarEmoji}>{emoji}</Text>
+                      <Text style={styles.selectedAvatarEmoji}>{avatarEmoji}</Text>
                       <Text style={styles.selectedAvatarHint}>{t("fam.changeAvatar")}</Text>
                     </TouchableOpacity>
                   )}
@@ -355,8 +369,25 @@ const styles = StyleSheet.create({
   },
   emojiBtnActive: { backgroundColor: COLORS.accentLight, borderColor: COLORS.accent },
   emojiBtnText: { fontSize: 24 },
-  toneRow: { flexDirection: "row", flexWrap: "wrap", gap: SPACING.sm, marginTop: SPACING.sm },
-  toneHint: { color: COLORS.textTertiary, fontSize: FONT_SIZE.xs, marginTop: SPACING.sm },
+  toneLabel: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: "700",
+    color: COLORS.textTertiary,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xs,
+  },
+  toneRow: { flexDirection: "row", flexWrap: "wrap", gap: SPACING.sm },
+  doneBtn: {
+    alignSelf: "flex-start",
+    marginTop: SPACING.md,
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.accent,
+  },
+  doneText: { color: "#fff", fontWeight: "800" },
   selectedAvatar: {
     flexDirection: "row",
     alignItems: "center",
