@@ -41,6 +41,19 @@ export interface Kid {
   created_at: string;
 }
 
+// A family roster entry — the grown-ups and kids, shown to friends so other
+// parents can place you ("oh, that's Jacob's family").
+export type MemberRole = "parent" | "child";
+
+export interface Member {
+  id: string;
+  name: string;
+  role: MemberRole;
+  emoji: string;
+  birth_year: number | null; // set for kids (their age); null for grown-ups
+  created_at: string;
+}
+
 export interface Landmark {
   id: string;
   name: string;
@@ -135,6 +148,7 @@ export type RootStackParamList = {
   QRScan: undefined;
   History: undefined;
   Feedback: undefined;
+  FamilyMembers: undefined;
 };
 
 export type MainTabParamList = {

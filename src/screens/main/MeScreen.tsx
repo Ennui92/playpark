@@ -133,6 +133,15 @@ export function MeScreen() {
 
         <TouchableOpacity
           style={styles.navCard}
+          onPress={() => nav.navigate("FamilyMembers")}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.navCardText}>{t("me.family")}</Text>
+          <Text style={styles.navCardChevron}>›</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navCard}
           onPress={() => nav.navigate("History")}
           activeOpacity={0.85}
         >

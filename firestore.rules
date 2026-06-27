@@ -49,6 +49,13 @@ service cloud.firestore {
         allow write: if isMyFamily(fid);
       }
 
+      // Family roster (grown-ups + kids). Visible to friends so other parents
+      // can recognise the family; only the family itself can edit it.
+      match /members/{memberId} {
+        allow read: if isMyFamily(fid) || (hasProfile() && friendEdge(myFamily(), fid));
+        allow write: if isMyFamily(fid);
+      }
+
       // My friend list. exists()-checks elsewhere bypass these read rules, so
       // friend lookups still work even though only the owner can list.
       match /friends/{otherId} {

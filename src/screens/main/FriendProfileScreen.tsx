@@ -13,10 +13,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { getFamilyById, getFamilyActivity } from "@/services/profile";
 import { removeFriendship, getFriendNote, setFriendNote } from "@/services/friends";
+import { getFamilyMembers } from "@/services/members";
 import { Button } from "@/components/Button";
 import { showDialog } from "@/components/dialog";
 import { useT } from "@/i18n";
-import { Family, RootStackParamList } from "@/types";
+import { Family, Member, RootStackParamList } from "@/types";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 
 type Route = RouteProp<RootStackParamList, "FriendProfile">;
@@ -33,20 +34,24 @@ export function FriendProfileScreen() {
     landmarksContributed: number;
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [members, setMembers] = useState<Member[]>([]);
+  const thisYear = new Date().getFullYear();
   const [note, setNote] = useState("");
   const [savedNote, setSavedNote] = useState("");
   const [savingNote, setSavingNote] = useState(false);
 
   const load = useCallback(async () => {
-    const [f, act, n] = await Promise.all([
+    const [f, act, n, mem] = await Promise.all([
       getFamilyById(familyId),
       getFamilyActivity(familyId),
       getFriendNote(familyId),
+      getFamilyMembers(familyId).catch(() => [] as Member[]),
     ]);
     setFamily(f);
     setActivity(act);
     setNote(n ?? "");
     setSavedNote(n ?? "");
+    setMembers(mem);
     setLoading(false);
   }, [familyId]);
 
@@ -147,6 +152,27 @@ export function FriendProfileScreen() {
           </View>
         </View>
 
+        {members.length > 0 && (
+          <View style={styles.familySection}>
+            <Text style={styles.familyTitle}>{t("fp.familyTitle")}</Text>
+            <View style={styles.familyRow}>
+              {members.map((m) => (
+                <View key={m.id} style={styles.memberChip}>
+                  <Text style={styles.memberChipEmoji}>{m.emoji}</Text>
+                  <Text style={styles.memberChipName} numberOfLines={1}>
+                    {m.name}
+                  </Text>
+                  {m.role === "child" && !!m.birth_year && (
+                    <Text style={styles.memberChipAge}>
+                      {Math.max(0, thisYear - m.birth_year)}
+                    </Text>
+                  )}
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
         <View style={styles.noteCard}>
           <Text style={styles.noteLabel}>{t("fp.noteLabel")}</Text>
           <TextInput
@@ -216,6 +242,37 @@ const styles = StyleSheet.create({
   },
   statValue: { fontSize: FONT_SIZE.xxl, fontWeight: "800", color: COLORS.accent },
   statLabel: { color: COLORS.textSecondary, fontSize: FONT_SIZE.sm, marginTop: SPACING.xs },
+  familySection: { paddingHorizontal: SPACING.xl, marginTop: SPACING.lg },
+  familyTitle: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: "700",
+    color: COLORS.textSecondary,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: SPACING.sm,
+  },
+  familyRow: { flexDirection: "row", flexWrap: "wrap", gap: SPACING.sm },
+  memberChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.xs,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.full,
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+    ...SHADOW.sm,
+  },
+  memberChipEmoji: { fontSize: 20 },
+  memberChipName: { color: COLORS.textPrimary, fontWeight: "600", maxWidth: 120 },
+  memberChipAge: {
+    color: COLORS.accent,
+    fontWeight: "800",
+    fontSize: FONT_SIZE.sm,
+    backgroundColor: COLORS.accentLight,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: 6,
+    overflow: "hidden",
+  },
   noteCard: {
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,

@@ -28,6 +28,7 @@ import { QRShareScreen } from "@/screens/friends/QRShareScreen";
 import { QRScanScreen } from "@/screens/friends/QRScanScreen";
 import { HistoryScreen } from "@/screens/main/HistoryScreen";
 import { FeedbackScreen } from "@/screens/main/FeedbackScreen";
+import { FamilyMembersScreen } from "@/screens/main/FamilyMembersScreen";
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tabs = createBottomTabNavigator<MainTabParamList>();
@@ -199,6 +200,7 @@ export function RootNavigator() {
             <RootStack.Screen name="QRShare" component={QRShareScreen} />
             <RootStack.Screen name="QRScan" component={QRScanScreen} />
             <RootStack.Screen name="History" component={HistoryScreen} />
+            <RootStack.Screen name="FamilyMembers" component={FamilyMembersScreen} />
             <RootStack.Screen
               name="Feedback"
               component={FeedbackScreen}

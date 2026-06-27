@@ -141,6 +141,24 @@ async function main() {
     return;
   }
 
+  if (cmd === "memtest") {
+    const b = await ensureB(a.zip);
+    let ref;
+    try {
+      ref = await addDoc(collection(wdb, "families", b.familyId, "members"), {
+        name: "Sim Kid", role: "child", emoji: "🧒", birth_year: 2020, created_at: new Date().toISOString(),
+      });
+      console.log("member write OK:", ref.id);
+    } catch (e) { console.log("MEMBER WRITE ERROR:", e.code, e.message); }
+    const snap = await getDocs(collection(wdb, "families", b.familyId, "members"));
+    console.log("members:", snap.docs.map((d) => `${d.data().emoji} ${d.data().name}`));
+    if (ref) {
+      await adb.collection("families").doc(b.familyId).collection("members").doc(ref.id).delete();
+      console.log("cleaned test member");
+    }
+    return;
+  }
+
   if (cmd === "notetest") {
     const b = await ensureB(a.zip);
     try {
