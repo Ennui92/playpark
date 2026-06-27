@@ -144,6 +144,24 @@ export function LandmarkScreen() {
     () => broadcasts.find((b) => b.family_id === family?.id) ?? null,
     [broadcasts, family?.id]
   );
+
+  // One outing per family (the one-active guard already enforces this, but
+  // dedupe defensively so a place never shows the same family twice or
+  // over-counts). Keep each family's most recent outing.
+  const dedupedBroadcasts = useMemo(() => {
+    const byFamily = new Map<string, BroadcastFeedItem>();
+    for (const b of broadcasts) {
+      const existing = byFamily.get(b.family_id);
+      if (!existing || b.created_at > existing.created_at) byFamily.set(b.family_id, b);
+    }
+    return Array.from(byFamily.values());
+  }, [broadcasts]);
+
+  // "Friends here now" counts distinct friend families and never counts you.
+  const friendBroadcasts = useMemo(
+    () => dedupedBroadcasts.filter((b) => b.family_id !== family?.id),
+    [dedupedBroadcasts, family?.id]
+  );
   const [updatingBroadcast, setUpdatingBroadcast] = useState(false);
 
   async function onStatusPreset(
@@ -280,15 +298,15 @@ export function LandmarkScreen() {
 
         {/* Live banner — makes it obvious you arrived at an ACTIVE
             broadcast, not just opened a place. */}
-        {broadcasts.length > 0 && (
+        {friendBroadcasts.length > 0 && (
           <View style={styles.liveBanner}>
             <LiveDot size={9} color="#fff" />
             <View style={{ flex: 1 }}>
               <Text style={styles.liveBannerLabel}>{t("home.liveNow")}</Text>
               <Text style={styles.liveBannerText} numberOfLines={1}>
-                {broadcasts.length === 1
-                  ? `${broadcasts[0].family_name} · ${formatWhen(new Date(broadcasts[0].planned_at))}`
-                  : t("lm.liveMany", { count: broadcasts.length })}
+                {friendBroadcasts.length === 1
+                  ? `${friendBroadcasts[0].family_name} · ${formatWhen(new Date(friendBroadcasts[0].planned_at))}`
+                  : t("lm.liveMany", { count: friendBroadcasts.length })}
               </Text>
             </View>
           </View>
@@ -349,10 +367,10 @@ export function LandmarkScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t("lm.whosHeaded")}</Text>
-          {broadcasts.length === 0 ? (
+          {dedupedBroadcasts.length === 0 ? (
             <Text style={styles.empty}>{t("lm.noOneYet")}</Text>
           ) : (
-            broadcasts.map((b) => {
+            dedupedBroadcasts.map((b) => {
               const rsvps = rsvpsByBroadcast[b.id] ?? [];
               const coming = rsvps.filter((r) => r.status === "coming");
               const maybe = rsvps.filter((r) => r.status === "maybe");
