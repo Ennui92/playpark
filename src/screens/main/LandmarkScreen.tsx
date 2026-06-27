@@ -30,15 +30,26 @@ import {
   getRsvpsForBroadcast,
   endBroadcast,
   updateBroadcastMessage,
+  getReactionsForBroadcast,
+  setBroadcastReaction,
+  removeBroadcastReaction,
 } from "@/services/broadcasts";
 import { LiveDot } from "@/components/LiveDot";
+import { ReactionBar } from "@/components/ReactionBar";
 import {
   favoriteLandmark,
   getFavoriteLandmarkIds,
   unfavoriteLandmark,
 } from "@/services/favorites";
 import { MapPreview } from "@/components/MapPreview";
-import { Landmark, BroadcastFeedItem, BroadcastRsvpRow, RsvpStatus, RootStackParamList } from "@/types";
+import {
+  Landmark,
+  BroadcastFeedItem,
+  BroadcastReaction,
+  BroadcastRsvpRow,
+  RsvpStatus,
+  RootStackParamList,
+} from "@/types";
 import { useSession } from "@/contexts/SessionContext";
 import { useT, TranslationKey } from "@/i18n";
 import { COLORS, FONT_SIZE, RADIUS, SPACING, SHADOW } from "@/utils/theme";
@@ -59,6 +70,10 @@ export function LandmarkScreen() {
   // broadcast_id → array of all RSVPs visible to me on that broadcast.
   const [rsvpsByBroadcast, setRsvpsByBroadcast] = useState<
     Record<string, BroadcastRsvpRow[]>
+  >({});
+  // broadcast_id → emoji reactions left on that broadcast.
+  const [reactionsByBroadcast, setReactionsByBroadcast] = useState<
+    Record<string, BroadcastReaction[]>
   >({});
   const [muted, setMuted] = useState(false);
   const [favorite, setFavorite] = useState(false);
@@ -129,6 +144,12 @@ export function LandmarkScreen() {
         bs.map((b) => getRsvpsForBroadcast(b.id).then((rs) => [b.id, rs] as const))
       );
       setRsvpsByBroadcast(Object.fromEntries(rsvpResults));
+
+      // Reactions are per-broadcast too — fetch in parallel.
+      const reactionResults = await Promise.all(
+        bs.map((b) => getReactionsForBroadcast(b.id).then((rs) => [b.id, rs] as const))
+      );
+      setReactionsByBroadcast(Object.fromEntries(reactionResults));
     } catch (e: any) {
       // Surface instead of spinning forever (e.g. timed-out request).
       showDialog(t("common.somethingWrong"), e?.message ?? t("common.tryAgain"));
@@ -236,6 +257,35 @@ export function LandmarkScreen() {
     } catch (e: any) {
       showDialog(t("lm.rsvpCouldnt"), e?.message ?? t("common.tryAgain"));
       await load();
+    }
+  }
+
+  // Optimistic reaction toggle. Tapping your current emoji clears it.
+  async function onReact(broadcastId: string, emoji: string) {
+    if (!family) return;
+    const prev = reactionsByBroadcast[broadcastId] ?? [];
+    const mine = prev.find((r) => r.family_id === family.id);
+    const without = prev.filter((r) => r.family_id !== family.id);
+    const removing = mine?.emoji === emoji;
+    const next: BroadcastReaction[] = removing
+      ? without
+      : [
+          ...without,
+          {
+            broadcast_id: broadcastId,
+            family_id: family.id,
+            emoji,
+            family_name: family.name,
+            created_at: new Date().toISOString(),
+          },
+        ];
+    setReactionsByBroadcast({ ...reactionsByBroadcast, [broadcastId]: next });
+    try {
+      if (removing) await removeBroadcastReaction(broadcastId);
+      else await setBroadcastReaction(broadcastId, emoji);
+    } catch {
+      // Roll back to the server truth on failure.
+      setReactionsByBroadcast({ ...reactionsByBroadcast, [broadcastId]: prev });
     }
   }
 
@@ -459,6 +509,13 @@ export function LandmarkScreen() {
                       })}
                     </View>
                   )}
+
+                  <ReactionBar
+                    reactions={reactionsByBroadcast[b.id] ?? []}
+                    myFamilyId={family?.id ?? ""}
+                    canReact={!isOwnBroadcast}
+                    onReact={(emoji) => onReact(b.id, emoji)}
+                  />
                 </View>
               );
             })

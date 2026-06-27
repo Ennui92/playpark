@@ -89,6 +89,16 @@ export interface BroadcastRsvpRow extends BroadcastRsvp {
   family_avatar_url: string | null;
 }
 
+// A single emoji reaction left on a broadcast. One per family (the doc id is
+// the family id), so reacting again replaces the previous emoji.
+export interface BroadcastReaction {
+  broadcast_id: string;
+  family_id: string;
+  emoji: string;
+  family_name: string;
+  created_at: string;
+}
+
 // Pending incoming friend request, enriched with the sender's family.
 export interface FriendRequest {
   id: string;

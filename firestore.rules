@@ -142,6 +142,20 @@ service cloud.firestore {
         allow write: if hasProfile() && familyId == myFamily() &&
           (isMyFamily(broadcastFamily()) || friendEdge(myFamily(), broadcastFamily()));
       }
+
+      // Emoji reactions — same visibility model as rsvps. One doc per family
+      // (id = family id), so a family can only write its own reaction.
+      match /reactions/{familyId} {
+        function broadcastFamily() {
+          return get(/databases/$(database)/documents/broadcasts/$(bid)).data.family_id;
+        }
+        allow read: if hasProfile() &&
+          (isMyFamily(familyId) ||
+           isMyFamily(broadcastFamily()) ||
+           friendEdge(myFamily(), broadcastFamily()));
+        allow write: if hasProfile() && familyId == myFamily() &&
+          (isMyFamily(broadcastFamily()) || friendEdge(myFamily(), broadcastFamily()));
+      }
     }
   }
 }

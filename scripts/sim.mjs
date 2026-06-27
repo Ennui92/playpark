@@ -141,6 +141,38 @@ async function main() {
     return;
   }
 
+  if (cmd === "reacttest") {
+    const b = await ensureB(a.zip);
+    const bcs = await getDocs(query(collection(wdb, "broadcasts"), where("family_id", "==", b.familyId)));
+    const active = bcs.docs.find((d) => !d.data().ended_at);
+    if (!active) { console.log("no active broadcast to react to"); return; }
+    const bid = active.id;
+    try {
+      await setDoc(doc(wdb, "broadcasts", bid, "reactions", b.familyId), {
+        broadcast_id: bid, family_id: b.familyId, emoji: "🎉", family_name: B.fam,
+        created_at: new Date().toISOString(),
+      });
+      console.log("reaction write OK on", bid);
+    } catch (e) { console.log("REACTION WRITE ERROR:", e.code, e.message); }
+    const rs = await getDocs(collection(wdb, "broadcasts", bid, "reactions"));
+    console.log("reactions on broadcast:", rs.docs.map((d) => d.data().emoji));
+    await adb.collection("broadcasts").doc(bid).collection("reactions").doc(b.familyId).delete();
+    console.log("cleaned test reaction");
+    return;
+  }
+
+  if (cmd === "fblist") {
+    const snap = await adb.collection("feedback").orderBy("created_at", "desc").limit(50).get();
+    console.log(`Feedback submissions (${snap.size}):`);
+    snap.forEach((d) => {
+      const x = d.data();
+      console.log(`  [${x.category}] ${(x.created_at ?? "").slice(0, 16)}  v${x.app_version}/${x.platform}`);
+      console.log(`    ${x.message}`);
+    });
+    if (snap.size === 0) console.log("  (none yet)");
+    return;
+  }
+
   if (cmd === "fbtest") {
     const b = await ensureB(a.zip);
     try {

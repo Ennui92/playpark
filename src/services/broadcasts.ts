@@ -5,6 +5,7 @@ import {
   getDoc,
   getDocs,
   setDoc,
+  deleteDoc,
   updateDoc,
   query,
   where,
@@ -12,7 +13,13 @@ import {
   limit as qLimit,
 } from "firebase/firestore";
 import { db } from "@/config/firebase";
-import { Broadcast, BroadcastFeedItem, BroadcastRsvpRow, RsvpStatus } from "@/types";
+import {
+  Broadcast,
+  BroadcastFeedItem,
+  BroadcastReaction,
+  BroadcastRsvpRow,
+  RsvpStatus,
+} from "@/types";
 import { getMyFamilyId } from "@/services/me";
 
 // Firestore queries must be fully satisfiable by the read rules — you can't
@@ -218,4 +225,47 @@ export async function getMyRsvp(
 ): Promise<RsvpStatus | null> {
   const snap = await getDoc(doc(db, "broadcasts", broadcastId, "rsvps", myFamilyId));
   return snap.exists() ? ((snap.data() as any).status as RsvpStatus) : null;
+}
+
+// ─── Reactions ─────────────────────────────────────────────────────────────
+
+// The fixed palette of quick reactions. Kept small so the bar stays a single
+// tap, not a picker.
+export const REACTION_EMOJIS = ["👍", "❤️", "🎉", "😮", "😂"] as const;
+
+export async function getReactionsForBroadcast(
+  broadcastId: string
+): Promise<BroadcastReaction[]> {
+  const snap = await getDocs(collection(db, "broadcasts", broadcastId, "reactions"));
+  return snap.docs.map((d) => {
+    const r = d.data() as any;
+    return {
+      broadcast_id: broadcastId,
+      family_id: r.family_id,
+      emoji: r.emoji,
+      family_name: r.family_name ?? "Someone",
+      created_at: r.created_at,
+    };
+  });
+}
+
+export async function setBroadcastReaction(
+  broadcastId: string,
+  emoji: string
+): Promise<void> {
+  const myFamily = await getMyFamilyId();
+  const fam = await getDoc(doc(db, "families", myFamily));
+  const famData = fam.data() as any;
+  await setDoc(doc(db, "broadcasts", broadcastId, "reactions", myFamily), {
+    broadcast_id: broadcastId,
+    family_id: myFamily,
+    emoji,
+    family_name: famData?.name ?? "Someone",
+    created_at: new Date().toISOString(),
+  });
+}
+
+export async function removeBroadcastReaction(broadcastId: string): Promise<void> {
+  const myFamily = await getMyFamilyId();
+  await deleteDoc(doc(db, "broadcasts", broadcastId, "reactions", myFamily));
 }
