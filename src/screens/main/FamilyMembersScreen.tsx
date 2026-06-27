@@ -41,8 +41,9 @@ export function FamilyMembersScreen() {
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [role, setRole] = useState<MemberRole>("child");
-  const [emoji, setEmoji] = useState<string>(MEMBER_EMOJIS[8]);
+  const [emoji, setEmoji] = useState<string>("🧒");
   const [age, setAge] = useState("");
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!family) return;
@@ -61,8 +62,9 @@ export function FamilyMembersScreen() {
     setEditId(null);
     setName("");
     setRole("child");
-    setEmoji(MEMBER_EMOJIS[8]);
+    setEmoji("🧒");
     setAge("");
+    setEmojiPickerOpen(false);
     setEditorOpen(true);
   }
 
@@ -72,6 +74,7 @@ export function FamilyMembersScreen() {
     setRole(m.role);
     setEmoji(m.emoji);
     setAge(m.birth_year ? String(Math.max(0, thisYear - m.birth_year)) : "");
+    setEmojiPickerOpen(false);
     setEditorOpen(true);
   }
 
@@ -165,21 +168,34 @@ export function FamilyMembersScreen() {
               {editorOpen ? (
                 <View style={styles.editor}>
                   <Text style={styles.label}>{t("fam.avatarLabel")}</Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.emojiRow}
-                  >
-                    {MEMBER_EMOJIS.map((e) => (
-                      <TouchableOpacity
-                        key={e}
-                        style={[styles.emojiBtn, emoji === e && styles.emojiBtnActive]}
-                        onPress={() => setEmoji(e)}
-                      >
-                        <Text style={styles.emojiBtnText}>{e}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                  {emojiPickerOpen ? (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.emojiRow}
+                    >
+                      {MEMBER_EMOJIS.map((e) => (
+                        <TouchableOpacity
+                          key={e}
+                          style={[styles.emojiBtn, emoji === e && styles.emojiBtnActive]}
+                          onPress={() => {
+                            setEmoji(e);
+                            setEmojiPickerOpen(false);
+                          }}
+                        >
+                          <Text style={styles.emojiBtnText}>{e}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.selectedAvatar}
+                      onPress={() => setEmojiPickerOpen(true)}
+                    >
+                      <Text style={styles.selectedAvatarEmoji}>{emoji}</Text>
+                      <Text style={styles.selectedAvatarHint}>{t("fam.changeAvatar")}</Text>
+                    </TouchableOpacity>
+                  )}
 
                   <Text style={styles.label}>{t("fam.nameLabel")}</Text>
                   <TextInput
@@ -302,6 +318,25 @@ const styles = StyleSheet.create({
   },
   emojiBtnActive: { backgroundColor: COLORS.accentLight, borderColor: COLORS.accent },
   emojiBtnText: { fontSize: 24 },
+  selectedAvatar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.md,
+    paddingVertical: SPACING.xs,
+  },
+  selectedAvatarEmoji: {
+    fontSize: 30,
+    width: 52,
+    height: 52,
+    textAlign: "center",
+    lineHeight: 50,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: COLORS.accent,
+    backgroundColor: COLORS.accentLight,
+    overflow: "hidden",
+  },
+  selectedAvatarHint: { color: COLORS.accent, fontWeight: "700" },
   input: {
     backgroundColor: COLORS.background,
     borderRadius: RADIUS.md,

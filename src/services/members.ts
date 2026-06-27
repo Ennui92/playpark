@@ -11,9 +11,10 @@ import { Member, MemberRole } from "@/types";
 
 // Preset people emojis offered as member avatars (no system emoji keyboard,
 // so the picker stays one tap).
+// Chicks and babies first — parents often pick those for a little one.
 export const MEMBER_EMOJIS = [
-  "👩", "👨", "🧑", "👩‍🦰", "👨‍🦰", "🧕", "👵", "👴",
-  "🧒", "👦", "👧", "👶", "🐣", "🦄", "🐥", "🧸",
+  "🐣", "🐥", "👶", "🧒", "👦", "👧", "👩", "👨",
+  "🧑", "👩‍🦰", "👨‍🦰", "🧕", "👵", "👴", "🦄", "🧸",
 ] as const;
 
 export async function getFamilyMembers(familyId: string): Promise<Member[]> {

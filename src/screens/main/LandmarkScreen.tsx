@@ -126,35 +126,50 @@ export function LandmarkScreen() {
   const load = useCallback(async () => {
     if (!family) return;
     try {
+      // Only the landmark itself is required to render. Everything else
+      // degrades to a sensible default so one failing/slow call can never
+      // leave the screen spinning forever.
       const [lm, bs, mutes, favs, mine] = await Promise.all([
         getLandmarkById(landmarkId),
-        getActiveBroadcastsForLandmark(landmarkId),
-        getMutedLandmarkIds(family.id),
-        getFavoriteLandmarkIds(family.id),
-        getMyActiveBroadcast(family.id),
+        getActiveBroadcastsForLandmark(landmarkId).catch(() => []),
+        getMutedLandmarkIds(family.id).catch(() => new Set<string>()),
+        getFavoriteLandmarkIds(family.id).catch(() => new Set<string>()),
+        getMyActiveBroadcast(family.id).catch(() => null),
       ]);
       setLandmark(lm);
       setBroadcasts(bs);
       setMuted(mutes.has(landmarkId));
       setFavorite(favs.has(landmarkId));
       setMyGlobalBroadcast(mine);
+      // Stop the spinner as soon as the place is in — the RSVP/reaction
+      // fetches below fill in the cards as they arrive and must never block
+      // the whole screen (a hung secondary call used to spin forever).
+      setLoading(false);
 
-      // RSVPs are per-broadcast — fetch in parallel.
+      // RSVPs are per-broadcast — fetch in parallel, degrade on failure.
       const rsvpResults = await Promise.all(
-        bs.map((b) => getRsvpsForBroadcast(b.id).then((rs) => [b.id, rs] as const))
+        bs.map((b) =>
+          getRsvpsForBroadcast(b.id)
+            .then((rs) => [b.id, rs] as const)
+            .catch(() => [b.id, [] as BroadcastRsvpRow[]] as const)
+        )
       );
       setRsvpsByBroadcast(Object.fromEntries(rsvpResults));
 
-      // Reactions are per-broadcast too — fetch in parallel.
+      // Reactions are per-broadcast too — same treatment.
       const reactionResults = await Promise.all(
-        bs.map((b) => getReactionsForBroadcast(b.id).then((rs) => [b.id, rs] as const))
+        bs.map((b) =>
+          getReactionsForBroadcast(b.id)
+            .then((rs) => [b.id, rs] as const)
+            .catch(() => [b.id, [] as BroadcastReaction[]] as const)
+        )
       );
       setReactionsByBroadcast(Object.fromEntries(reactionResults));
     } catch (e: any) {
-      // Surface instead of spinning forever (e.g. timed-out request).
+      // The landmark read itself failed — surface it; the render falls back
+      // to a Retry state rather than an endless spinner.
       showDialog(t("common.somethingWrong"), e?.message ?? t("common.tryAgain"));
     } finally {
-      // Always stop the spinner, success or failure.
       setLoading(false);
     }
   }, [family, landmarkId, t]);
@@ -329,10 +344,37 @@ export function LandmarkScreen() {
     }
   }
 
-  if (loading || !landmark) {
+  if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <ActivityIndicator color={COLORS.accent} style={{ marginTop: SPACING.xxl }} />
+      </SafeAreaView>
+    );
+  }
+
+  // Loaded but no landmark = the read failed or the place is gone. Offer a
+  // way out instead of an endless spinner.
+  if (!landmark) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.topBar}>
+          <TouchableOpacity onPress={() => nav.goBack()}>
+            <Text style={styles.back}>{t("common.back")}</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.notFound}>
+          <Text style={styles.notFoundEmoji}>🗺️</Text>
+          <Text style={styles.notFoundText}>{t("lm.couldntLoad")}</Text>
+          <Button
+            title={t("common.retry")}
+            variant="secondary"
+            onPress={() => {
+              setLoading(true);
+              load();
+            }}
+            style={{ marginTop: SPACING.md }}
+          />
+        </View>
       </SafeAreaView>
     );
   }
@@ -430,7 +472,16 @@ export function LandmarkScreen() {
               return (
                 <View key={b.id} style={[styles.bcCard, isOwnBroadcast && styles.bcCardMine]}>
                   <View style={styles.bcWhoRow}>
-                    <Text style={styles.bcWho}>{b.family_name}</Text>
+                    {isOwnBroadcast ? (
+                      <Text style={styles.bcWho}>{b.family_name}</Text>
+                    ) : (
+                      <TouchableOpacity
+                        onPress={() => nav.navigate("FriendProfile", { familyId: b.family_id })}
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <Text style={[styles.bcWho, styles.bcWhoLink]}>{b.family_name} ›</Text>
+                      </TouchableOpacity>
+                    )}
                     {isOwnBroadcast && (
                       <Text style={styles.bcYouTag}>{t("lm.youTag")}</Text>
                     )}
@@ -595,6 +646,9 @@ const STATUS_PRESETS: { labelKey: TranslationKey; messageKey: TranslationKey; en
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
+  notFound: { alignItems: "center", paddingHorizontal: SPACING.xl, marginTop: SPACING.xxl },
+  notFoundEmoji: { fontSize: 48, marginBottom: SPACING.md },
+  notFoundText: { color: COLORS.textSecondary, fontSize: FONT_SIZE.md, textAlign: "center" },
   topBar: { padding: SPACING.md },
   back: { color: COLORS.accent, fontSize: FONT_SIZE.md, fontWeight: "600" },
   hero: { alignItems: "center", padding: SPACING.xl },
@@ -672,6 +726,7 @@ const styles = StyleSheet.create({
   bcCardMine: { borderWidth: 1.5, borderColor: COLORS.accent },
   bcWhoRow: { flexDirection: "row", alignItems: "center", gap: SPACING.sm },
   bcWho: { fontWeight: "700", color: COLORS.textPrimary, fontSize: FONT_SIZE.md },
+  bcWhoLink: { color: COLORS.accent },
   bcYouTag: {
     color: COLORS.accentDark,
     backgroundColor: COLORS.accentLight,
