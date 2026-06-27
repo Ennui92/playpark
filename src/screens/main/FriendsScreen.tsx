@@ -271,7 +271,13 @@ export function FriendsScreen() {
           return (
             <TouchableOpacity
               style={[styles.friendCard, live && styles.friendCardLive]}
-              onPress={() => nav.navigate("FriendProfile", { familyId: item.id })}
+              onPress={() =>
+                live
+                  ? // Live → take them to where the friend is going. Their
+                    // profile is one tap away from there (the name is a link).
+                    nav.navigate("Landmark", { landmarkId: live.landmark_id })
+                  : nav.navigate("FriendProfile", { familyId: item.id })
+              }
               onLongPress={() => confirmRemove(item)}
             >
               {item.avatar_url ? (
@@ -287,16 +293,11 @@ export function FriendsScreen() {
                   {live && <LiveDot size={8} />}
                 </View>
                 {live ? (
-                  // Tapping the live line jumps to the place — friends can
-                  // see & RSVP without it being one of their own saved spots.
-                  <TouchableOpacity
-                    onPress={() => nav.navigate("Landmark", { landmarkId: live.landmark_id })}
-                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                  >
-                    <Text style={styles.friendLive} numberOfLines={1}>
-                      {live.landmark_emoji ?? "📍"} {live.landmark_name} · {t("friends.outNow")}
-                    </Text>
-                  </TouchableOpacity>
+                  // The whole row already opens the place; this is just the
+                  // "out now → where" line.
+                  <Text style={styles.friendLive} numberOfLines={1}>
+                    {live.landmark_emoji ?? "📍"} {live.landmark_name} · {t("friends.outNow")}
+                  </Text>
                 ) : (
                   <Text style={styles.friendZip}>{item.zip}</Text>
                 )}
