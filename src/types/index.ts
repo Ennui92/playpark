@@ -45,11 +45,23 @@ export interface Kid {
 // parents can place you ("oh, that's Jacob's family").
 export type MemberRole = "parent" | "child";
 
+// An illustrated avatar config (DiceBear "adventurer"), regenerated to SVG on
+// render. Skin tone and hair colour are independent, so any kid/grown-up of any
+// look is representable (which emoji could not do).
+export interface MemberAvatar {
+  style: "adventurer";
+  seed: string;       // stable face features (eyes/mouth/brows)
+  skinColor: string;  // hex, no '#'
+  hairColor: string;  // hex, no '#'
+  hair: string;       // adventurer hair variant id, e.g. "long03"
+}
+
 export interface Member {
   id: string;
   name: string;
   role: MemberRole;
-  emoji: string;
+  avatar: MemberAvatar | null;
+  emoji?: string | null;     // legacy: pre-illustration members (render-only fallback)
   birth_year: number | null; // set for kids (their age); null for grown-ups
   created_at: string;
 }

@@ -14,24 +14,24 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { Button } from "@/components/Button";
 import { showDialog } from "@/components/dialog";
+import { MemberAvatar } from "@/components/MemberAvatar";
 import { useSession } from "@/contexts/SessionContext";
 import {
   getFamilyMembers,
   addFamilyMember,
   updateFamilyMember,
   removeFamilyMember,
-  AVATAR_BASES,
-  SKIN_TONES,
-  isToneable,
-  withSkinTone,
-  splitTone,
 } from "@/services/members";
+import {
+  SKIN_PALETTE,
+  HAIR_COLORS,
+  HAIR_VARIANTS,
+  DEFAULT_AVATAR,
+  randomSeed,
+} from "@/services/avatar";
 import { Member, MemberRole } from "@/types";
 import { useT } from "@/i18n";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
-
-// "" = default (no modifier), then the five Fitzpatrick tones.
-const TONE_OPTIONS = ["", ...SKIN_TONES];
 
 export function FamilyMembersScreen() {
   const nav = useNavigation();
@@ -48,13 +48,15 @@ export function FamilyMembersScreen() {
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [role, setRole] = useState<MemberRole>("child");
-  // Avatar is two axes: the person/hair base + an optional skin tone.
-  const [avatarBase, setAvatarBase] = useState<string>("🧒");
-  const [avatarTone, setAvatarTone] = useState<string>("");
+  // Avatar axes (independent so any look is possible).
+  const [seed, setSeed] = useState(DEFAULT_AVATAR.seed);
+  const [skinColor, setSkinColor] = useState(DEFAULT_AVATAR.skinColor);
+  const [hairColor, setHairColor] = useState(DEFAULT_AVATAR.hairColor);
+  const [hair, setHair] = useState(DEFAULT_AVATAR.hair);
   const [age, setAge] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  const avatarEmoji = withSkinTone(avatarBase, avatarTone);
+  const avatar = { style: "adventurer" as const, seed, skinColor, hairColor, hair };
 
   const load = useCallback(async () => {
     if (!family) return;
@@ -69,12 +71,18 @@ export function FamilyMembersScreen() {
     load();
   }, [load]);
 
+  function applyAvatar(a: { seed: string; skinColor: string; hairColor: string; hair: string }) {
+    setSeed(a.seed);
+    setSkinColor(a.skinColor);
+    setHairColor(a.hairColor);
+    setHair(a.hair);
+  }
+
   function openAdd() {
     setEditId(null);
     setName("");
     setRole("child");
-    setAvatarBase("🧒");
-    setAvatarTone("");
+    applyAvatar({ ...DEFAULT_AVATAR, seed: randomSeed() });
     setAge("");
     setPickerOpen(false);
     setEditorOpen(true);
@@ -84,9 +92,8 @@ export function FamilyMembersScreen() {
     setEditId(m.id);
     setName(m.name);
     setRole(m.role);
-    const { base, tone } = splitTone(m.emoji);
-    setAvatarBase(base);
-    setAvatarTone(tone);
+    // Upgrade legacy emoji-only members to an illustrated avatar on next save.
+    applyAvatar(m.avatar ?? { ...DEFAULT_AVATAR, seed: randomSeed() });
     setAge(m.birth_year ? String(Math.max(0, thisYear - m.birth_year)) : "");
     setPickerOpen(false);
     setEditorOpen(true);
@@ -103,16 +110,11 @@ export function FamilyMembersScreen() {
         await updateFamilyMember(family.id, editId, {
           name: name.trim(),
           role,
-          emoji: avatarEmoji,
+          avatar,
           birth_year: birthYear,
         });
       } else {
-        await addFamilyMember(family.id, {
-          name: name.trim(),
-          role,
-          emoji: avatarEmoji,
-          birthYear,
-        });
+        await addFamilyMember(family.id, { name: name.trim(), role, avatar, birthYear });
       }
       setEditorOpen(false);
       await load();
@@ -175,7 +177,7 @@ export function FamilyMembersScreen() {
                   onPress={() => openEdit(m)}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.memberEmoji}>{m.emoji}</Text>
+                  <MemberAvatar avatar={m.avatar} emoji={m.emoji} size={42} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.memberName}>{m.name}</Text>
                     <Text style={styles.memberMeta}>{memberSubtitle(m)}</Text>
@@ -187,52 +189,65 @@ export function FamilyMembersScreen() {
               {editorOpen ? (
                 <View style={styles.editor}>
                   <Text style={styles.label}>{t("fam.avatarLabel")}</Text>
+
                   {pickerOpen ? (
                     <View>
-                      {/* Person + hair */}
+                      <View style={styles.previewWrap}>
+                        <MemberAvatar avatar={avatar} size={84} />
+                        <TouchableOpacity onPress={() => setSeed(randomSeed())} style={styles.shuffleBtn}>
+                          <Text style={styles.shuffleText}>🎲 {t("fam.shuffle")}</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      <Text style={styles.miniLabel}>{t("fam.skinTone")}</Text>
+                      <View style={styles.swatchRow}>
+                        {SKIN_PALETTE.map((c) => (
+                          <TouchableOpacity
+                            key={c}
+                            style={[
+                              styles.swatch,
+                              { backgroundColor: `#${c}` },
+                              skinColor === c && styles.swatchActive,
+                            ]}
+                            onPress={() => setSkinColor(c)}
+                          />
+                        ))}
+                      </View>
+
+                      <Text style={styles.miniLabel}>{t("fam.hairColor")}</Text>
+                      <View style={styles.swatchRow}>
+                        {HAIR_COLORS.map((c) => (
+                          <TouchableOpacity
+                            key={c}
+                            style={[
+                              styles.swatch,
+                              { backgroundColor: `#${c}` },
+                              hairColor === c && styles.swatchActive,
+                            ]}
+                            onPress={() => setHairColor(c)}
+                          />
+                        ))}
+                      </View>
+
+                      <Text style={styles.miniLabel}>{t("fam.hairStyle")}</Text>
                       <ScrollView
                         horizontal
                         showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.emojiRow}
+                        contentContainerStyle={styles.hairRow}
                       >
-                        {AVATAR_BASES.map((base) => {
-                          const active = base === avatarBase;
-                          return (
-                            <TouchableOpacity
-                              key={base}
-                              style={[styles.emojiBtn, active && styles.emojiBtnActive]}
-                              onPress={() => setAvatarBase(base)}
-                            >
-                              <Text style={styles.emojiBtnText}>
-                                {withSkinTone(base, avatarTone)}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
+                        {HAIR_VARIANTS.map((v) => (
+                          <TouchableOpacity
+                            key={v}
+                            style={[styles.hairBtn, hair === v && styles.hairBtnActive]}
+                            onPress={() => setHair(v)}
+                          >
+                            <MemberAvatar
+                              avatar={{ style: "adventurer", seed, skinColor, hairColor, hair: v }}
+                              size={44}
+                            />
+                          </TouchableOpacity>
+                        ))}
                       </ScrollView>
-
-                      {/* Skin tone (only for people) */}
-                      {isToneable(avatarBase) && (
-                        <>
-                          <Text style={styles.toneLabel}>{t("fam.skinTone")}</Text>
-                          <View style={styles.toneRow}>
-                            {TONE_OPTIONS.map((tone) => {
-                              const active = tone === avatarTone;
-                              return (
-                                <TouchableOpacity
-                                  key={tone || "default"}
-                                  style={[styles.emojiBtn, active && styles.emojiBtnActive]}
-                                  onPress={() => setAvatarTone(tone)}
-                                >
-                                  <Text style={styles.emojiBtnText}>
-                                    {withSkinTone(avatarBase, tone)}
-                                  </Text>
-                                </TouchableOpacity>
-                              );
-                            })}
-                          </View>
-                        </>
-                      )}
 
                       <TouchableOpacity onPress={() => setPickerOpen(false)} style={styles.doneBtn}>
                         <Text style={styles.doneText}>{t("common.done")}</Text>
@@ -243,7 +258,7 @@ export function FamilyMembersScreen() {
                       style={styles.selectedAvatar}
                       onPress={() => setPickerOpen(true)}
                     >
-                      <Text style={styles.selectedAvatarEmoji}>{avatarEmoji}</Text>
+                      <MemberAvatar avatar={avatar} size={56} />
                       <Text style={styles.selectedAvatarHint}>{t("fam.changeAvatar")}</Text>
                     </TouchableOpacity>
                   )}
@@ -336,7 +351,6 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
     ...SHADOW.sm,
   },
-  memberEmoji: { fontSize: 34 },
   memberName: { fontSize: FONT_SIZE.md, fontWeight: "700", color: COLORS.textPrimary },
   memberMeta: { color: COLORS.textSecondary, fontSize: FONT_SIZE.sm, marginTop: 1 },
   chevron: { fontSize: 24, color: COLORS.textTertiary, fontWeight: "300" },
@@ -356,20 +370,7 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     marginBottom: SPACING.xs,
   },
-  emojiRow: { gap: SPACING.sm, paddingVertical: 2 },
-  emojiBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: COLORS.background,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  emojiBtnActive: { backgroundColor: COLORS.accentLight, borderColor: COLORS.accent },
-  emojiBtnText: { fontSize: 24 },
-  toneLabel: {
+  miniLabel: {
     fontSize: FONT_SIZE.xs,
     fontWeight: "700",
     color: COLORS.textTertiary,
@@ -378,7 +379,36 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     marginBottom: SPACING.xs,
   },
-  toneRow: { flexDirection: "row", flexWrap: "wrap", gap: SPACING.sm },
+  previewWrap: { flexDirection: "row", alignItems: "center", gap: SPACING.md, marginBottom: SPACING.xs },
+  shuffleBtn: {
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  shuffleText: { color: COLORS.textPrimary, fontWeight: "700" },
+  swatchRow: { flexDirection: "row", flexWrap: "wrap", gap: SPACING.sm },
+  swatch: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+  },
+  swatchActive: { borderWidth: 3, borderColor: COLORS.accent },
+  hairRow: { gap: SPACING.sm, paddingVertical: 2 },
+  hairBtn: {
+    width: 56,
+    height: 56,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.background,
+  },
+  hairBtnActive: { borderColor: COLORS.accent, backgroundColor: COLORS.accentLight },
   doneBtn: {
     alignSelf: "flex-start",
     marginTop: SPACING.md,
@@ -393,18 +423,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: SPACING.md,
     paddingVertical: SPACING.xs,
-  },
-  selectedAvatarEmoji: {
-    fontSize: 30,
-    width: 52,
-    height: 52,
-    textAlign: "center",
-    lineHeight: 50,
-    borderRadius: 26,
-    borderWidth: 1,
-    borderColor: COLORS.accent,
-    backgroundColor: COLORS.accentLight,
-    overflow: "hidden",
   },
   selectedAvatarHint: { color: COLORS.accent, fontWeight: "700" },
   input: {

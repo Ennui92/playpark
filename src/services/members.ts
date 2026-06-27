@@ -7,55 +7,23 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { db } from "@/config/firebase";
-import { Member, MemberRole } from "@/types";
-
-// Preset people emojis offered as member avatars (no system emoji keyboard,
-// so the picker stays one tap).
-// Avatar building blocks. Two axes: a person/hair "base" and an optional skin
-// tone. Chicks/babies lead (parents reach for those for a little one). Hair
-// variants (red/curly/white/bald) plus the blond forms (👱) cover hair colour;
-// skin tone covers the rest, so the picker can represent kids of any look.
-export const AVATAR_BASES = [
-  "🐣", "🐥",
-  "👶", "🧒", "👦", "👧",
-  "👩", "👩‍🦰", "👩‍🦱", "👩‍🦳", "👱‍♀️",
-  "👨", "👨‍🦰", "👨‍🦱", "👨‍🦳", "👨‍🦲", "👱‍♂️",
-  "🧑", "🧑‍🦰", "🧑‍🦱", "🧑‍🦳", "👱",
-  "🧕", "👵", "👴",
-  "🦄", "🧸",
-] as const;
-
-// Fitzpatrick skin-tone modifiers (combine with a person base).
-export const SKIN_TONES = ["🏻", "🏼", "🏽", "🏾", "🏿"] as const;
-
-// Animals/objects can't take a skin tone; every person can.
-const NON_TONEABLE = new Set(["🐣", "🐥", "🦄", "🧸"]);
-
-export function isToneable(base: string): boolean {
-  return !NON_TONEABLE.has(base);
-}
-
-// Insert the tone right after the person codepoint, before any ZWJ hair/gender
-// sequence ("👩" + "🏽" => "👩🏽"; "👩‍🦰" + "🏽" => "👩🏽‍🦰"; "👱‍♀️" + "🏿" => "👱🏿‍♀️").
-export function withSkinTone(base: string, tone: string): string {
-  if (!tone) return base;
-  const chars = [...base];
-  return chars[0] + tone + chars.slice(1).join("");
-}
-
-// Split a stored emoji back into { base, tone } so the editor can re-select it.
-export function splitTone(emoji: string): { base: string; tone: string } {
-  const chars = [...emoji];
-  if (chars[1] && (SKIN_TONES as readonly string[]).includes(chars[1])) {
-    return { base: chars[0] + chars.slice(2).join(""), tone: chars[1] };
-  }
-  return { base: emoji, tone: "" };
-}
+import { Member, MemberAvatar, MemberRole } from "@/types";
 
 export async function getFamilyMembers(familyId: string): Promise<Member[]> {
   const snap = await getDocs(collection(db, "families", familyId, "members"));
   return snap.docs
-    .map((d) => ({ id: d.id, ...(d.data() as Omit<Member, "id">) }))
+    .map((d) => {
+      const x = d.data() as any;
+      return {
+        id: d.id,
+        name: x.name,
+        role: x.role,
+        avatar: (x.avatar ?? null) as MemberAvatar | null,
+        emoji: (x.emoji ?? null) as string | null, // legacy render-only fallback
+        birth_year: x.birth_year ?? null,
+        created_at: x.created_at,
+      } as Member;
+    })
     .sort((a, b) => {
       // Grown-ups first, then by creation order.
       if (a.role !== b.role) return a.role === "parent" ? -1 : 1;
@@ -65,12 +33,12 @@ export async function getFamilyMembers(familyId: string): Promise<Member[]> {
 
 export async function addFamilyMember(
   familyId: string,
-  m: { name: string; role: MemberRole; emoji: string; birthYear: number | null }
+  m: { name: string; role: MemberRole; avatar: MemberAvatar; birthYear: number | null }
 ): Promise<void> {
   await addDoc(collection(db, "families", familyId, "members"), {
     name: m.name.trim(),
     role: m.role,
-    emoji: m.emoji,
+    avatar: m.avatar,
     birth_year: m.birthYear,
     created_at: new Date().toISOString(),
   });
@@ -79,7 +47,7 @@ export async function addFamilyMember(
 export async function updateFamilyMember(
   familyId: string,
   memberId: string,
-  patch: { name?: string; role?: MemberRole; emoji?: string; birth_year?: number | null }
+  patch: { name?: string; role?: MemberRole; avatar?: MemberAvatar; birth_year?: number | null }
 ): Promise<void> {
   await updateDoc(doc(db, "families", familyId, "members", memberId), patch);
 }

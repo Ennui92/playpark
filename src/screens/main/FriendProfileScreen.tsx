@@ -14,6 +14,7 @@ import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { getFamilyById, getFamilyActivity } from "@/services/profile";
 import { removeFriendship, getFriendNote, setFriendNote } from "@/services/friends";
 import { getFamilyMembers } from "@/services/members";
+import { MemberAvatar } from "@/components/MemberAvatar";
 import { Button } from "@/components/Button";
 import { showDialog } from "@/components/dialog";
 import { useT } from "@/i18n";
@@ -158,7 +159,7 @@ export function FriendProfileScreen() {
             <View style={styles.familyRow}>
               {members.map((m) => (
                 <View key={m.id} style={styles.memberChip}>
-                  <Text style={styles.memberChipEmoji}>{m.emoji}</Text>
+                  <MemberAvatar avatar={m.avatar} emoji={m.emoji} size={26} />
                   <Text style={styles.memberChipName} numberOfLines={1}>
                     {m.name}
                   </Text>

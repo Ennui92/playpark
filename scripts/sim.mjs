@@ -146,12 +146,14 @@ async function main() {
     let ref;
     try {
       ref = await addDoc(collection(wdb, "families", b.familyId, "members"), {
-        name: "Sim Kid", role: "child", emoji: "🧒", birth_year: 2020, created_at: new Date().toISOString(),
+        name: "Sim Kid", role: "child",
+        avatar: { style: "adventurer", seed: "simkid", skinColor: "8d5524", hairColor: "1c1c1c", hair: "short03" },
+        birth_year: 2020, created_at: new Date().toISOString(),
       });
       console.log("member write OK:", ref.id);
     } catch (e) { console.log("MEMBER WRITE ERROR:", e.code, e.message); }
     const snap = await getDocs(collection(wdb, "families", b.familyId, "members"));
-    console.log("members:", snap.docs.map((d) => `${d.data().emoji} ${d.data().name}`));
+    console.log("members:", snap.docs.map((d) => { const x = d.data(); return `${x.name} avatar=${JSON.stringify(x.avatar)}`; }));
     if (ref) {
       await adb.collection("families").doc(b.familyId).collection("members").doc(ref.id).delete();
       console.log("cleaned test member");
