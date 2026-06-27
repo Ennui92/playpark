@@ -26,6 +26,8 @@ import { EditProfileScreen } from "@/screens/main/EditProfileScreen";
 import { FriendProfileScreen } from "@/screens/main/FriendProfileScreen";
 import { QRShareScreen } from "@/screens/friends/QRShareScreen";
 import { QRScanScreen } from "@/screens/friends/QRScanScreen";
+import { HistoryScreen } from "@/screens/main/HistoryScreen";
+import { FeedbackScreen } from "@/screens/main/FeedbackScreen";
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tabs = createBottomTabNavigator<MainTabParamList>();
@@ -196,6 +198,12 @@ export function RootNavigator() {
             <RootStack.Screen name="FriendProfile" component={FriendProfileScreen} />
             <RootStack.Screen name="QRShare" component={QRShareScreen} />
             <RootStack.Screen name="QRScan" component={QRScanScreen} />
+            <RootStack.Screen name="History" component={HistoryScreen} />
+            <RootStack.Screen
+              name="Feedback"
+              component={FeedbackScreen}
+              options={{ presentation: "modal" }}
+            />
           </>
         )}
       </RootStack.Navigator>

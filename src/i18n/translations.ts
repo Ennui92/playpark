@@ -245,6 +245,26 @@ export const en = {
   "me.updatesDisabled": "Updates not enabled",
   "me.updatesDisabledSub": "This build doesn't have updates wired (probably a dev client).",
   "me.couldntCheck": "Couldn't check",
+  "me.history": "🗺 Where you've been",
+  "me.feedback": "💬 Send feedback",
+
+  // ─── History (your outings timeline) ──────────────────────────────────────
+  "hist.title": "Where you've been",
+  "hist.sub": "Every outing you've broadcast, newest first.",
+  "hist.empty": "No outings yet. Broadcast a place and it shows up here as your history.",
+
+  // ─── Feedback ─────────────────────────────────────────────────────────────
+  "fb.title": "Send feedback",
+  "fb.sub": "Tell us what you love, what's broken, or what you wish Outside did. We read every message.",
+  "fb.placeholder": "What's on your mind?",
+  "fb.catIdea": "Idea",
+  "fb.catProblem": "Problem",
+  "fb.catLove": "Love it",
+  "fb.catOther": "Other",
+  "fb.send": "Send feedback",
+  "fb.sent": "Thank you!",
+  "fb.sentSub": "Your feedback is in. It genuinely helps shape Outside.",
+  "fb.couldntSend": "Couldn't send",
 
   // ─── Edit profile ───────────────────────────────────────────────────────
   "ep.title": "Edit profile",
@@ -514,6 +534,24 @@ export const de: Record<TranslationKey, string> = {
   "me.updatesDisabled": "Updates nicht aktiviert",
   "me.updatesDisabledSub": "Dieser Build hat keine Updates (vermutlich ein Dev-Client).",
   "me.couldntCheck": "Konnte nicht prüfen",
+  "me.history": "🗺 Wo du warst",
+  "me.feedback": "💬 Feedback senden",
+
+  "hist.title": "Wo du warst",
+  "hist.sub": "Alle Ausflüge, die du angekündigt hast, neueste zuerst.",
+  "hist.empty": "Noch keine Ausflüge. Kündige einen Ort an, dann erscheint er hier in deiner Historie.",
+
+  "fb.title": "Feedback senden",
+  "fb.sub": "Sag uns, was dir gefällt, was kaputt ist oder was Outside können sollte. Wir lesen jede Nachricht.",
+  "fb.placeholder": "Was beschäftigt dich?",
+  "fb.catIdea": "Idee",
+  "fb.catProblem": "Problem",
+  "fb.catLove": "Liebe es",
+  "fb.catOther": "Sonstiges",
+  "fb.send": "Feedback senden",
+  "fb.sent": "Danke!",
+  "fb.sentSub": "Dein Feedback ist da. Das hilft Outside wirklich.",
+  "fb.couldntSend": "Konnte nicht senden",
 
   "ep.title": "Profil bearbeiten",
   "ep.addPhoto": "Foto hinzufügen",

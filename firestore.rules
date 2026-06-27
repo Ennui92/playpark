@@ -106,6 +106,13 @@ service cloud.firestore {
          resource.data.from_family_id == myFamily());
     }
 
+    // ─── feedback (write-only inbox; read via console/admin only) ────────────
+    match /feedback/{id} {
+      allow create: if signedIn() &&
+        request.resource.data.family_id == myFamily();
+      allow read, update, delete: if false;
+    }
+
     // ─── qr_nonces (capability token — the id is the secret) ─────────────────
     match /qr_nonces/{nonce} {
       allow read: if signedIn();

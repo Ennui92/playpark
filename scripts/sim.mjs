@@ -17,7 +17,7 @@ import {
 } from "firebase/auth";
 import {
   getFirestore, doc, collection, setDoc, getDoc, getDocs, addDoc,
-  runTransaction, query, where, limit,
+  runTransaction, query, where, limit, orderBy,
 } from "firebase/firestore";
 
 const cmd = process.argv[2] || "status";
@@ -138,6 +138,74 @@ async function main() {
     await setDoc(doc(wdb, "broadcasts", bid), { ended_at: new Date().toISOString() }, { merge: true });
     console.log("B ended the outing.");
     await push(a.token, `${B.fam} wrapped up`, "The outing ended", { type: "broadcast" });
+    return;
+  }
+
+  if (cmd === "fbtest") {
+    const b = await ensureB(a.zip);
+    try {
+      const ref = await addDoc(collection(wdb, "feedback"), {
+        family_id: b.familyId, message: "sim smoke-test feedback", category: "idea",
+        app_version: "test", platform: "node", created_at: new Date().toISOString(),
+      });
+      console.log("valid feedback write OK:", ref.id);
+    } catch (e) { console.log("VALID WRITE FAILED (rule too tight):", e.code, e.message); }
+    try {
+      await addDoc(collection(wdb, "feedback"), {
+        family_id: "not-my-family", message: "x", category: "idea", created_at: new Date().toISOString(),
+      });
+      console.log("WARNING: wrong-family write ALLOWED (rule too loose)");
+    } catch (e) { console.log("wrong-family write correctly rejected:", e.code); }
+    // cleanup the test docs via admin
+    const junk = await adb.collection("feedback").where("platform", "==", "node").get();
+    for (const d of junk.docs) await d.ref.delete();
+    console.log("cleaned", junk.size, "test feedback doc(s)");
+    return;
+  }
+
+  if (cmd === "feedq") {
+    // Run the EXACT getActiveFeed query through the real rules + index, signed
+    // in as B (whose audience = B + B's friends, i.e. includes A).
+    const b = await ensureB(a.zip);
+    const bfriends = await getDocs(collection(wdb, "families", b.familyId, "friends"));
+    const audience = [b.familyId, ...bfriends.docs.map((d) => d.id)].slice(0, 30);
+    console.log("B audience (in-filter):", audience);
+    try {
+      const snap = await getDocs(
+        query(
+          collection(wdb, "broadcasts"),
+          where("family_id", "in", audience),
+          where("ended_at", "==", null),
+          orderBy("planned_at", "asc")
+        )
+      );
+      const nowIso = new Date().toISOString();
+      const items = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((x) => x.expires_at > nowIso);
+      console.log(`feed query OK: ${snap.size} docs, ${items.length} active`);
+      items.forEach((x) => console.log(`  ${x.id} fam=${x.family_name} lm=${x.landmark_name}`));
+    } catch (e) {
+      console.log("FEED QUERY ERROR:", e.code, "-", e.message);
+    }
+    return;
+  }
+
+  if (cmd === "diag") {
+    const b = await ensureB(a.zip);
+    const nowIso = new Date().toISOString();
+    console.log("now:", nowIso);
+    console.log("A family:", a.familyId, "zip", a.zip, "| B family:", b.familyId);
+    const aF = await adb.collection("families").doc(a.familyId).collection("friends").get();
+    const bF = await adb.collection("families").doc(b.familyId).collection("friends").get();
+    console.log("A's friend edges:", aF.docs.map((d) => d.id));
+    console.log("B's friend edges:", bF.docs.map((d) => d.id));
+    console.log("A sees B as friend?", aF.docs.some((d) => d.id === b.familyId));
+    const bcs = await adb.collection("broadcasts").where("family_id", "==", b.familyId).get();
+    console.log(`B's broadcasts (${bcs.size}):`);
+    bcs.forEach((d) => {
+      const x = d.data();
+      const active = !x.ended_at && x.expires_at > nowIso;
+      console.log(`  ${d.id} active=${active} ended=${x.ended_at} planned=${x.planned_at} expires=${x.expires_at} lm=${x.landmark_name}`);
+    });
     return;
   }
 }

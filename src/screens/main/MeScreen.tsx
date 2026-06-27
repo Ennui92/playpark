@@ -131,6 +131,15 @@ export function MeScreen() {
           <Row label={t("me.username")} value={`@${user?.username ?? "-"}`} />
         </View>
 
+        <TouchableOpacity
+          style={styles.navCard}
+          onPress={() => nav.navigate("History")}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.navCardText}>{t("me.history")}</Text>
+          <Text style={styles.navCardChevron}>›</Text>
+        </TouchableOpacity>
+
         <Text style={styles.sectionLabel}>{t("me.language")}</Text>
         <LanguagePicker />
 
@@ -145,6 +154,13 @@ export function MeScreen() {
           title={t("me.testPush")}
           variant="secondary"
           onPress={testPushSetup}
+          style={{ marginTop: SPACING.md }}
+        />
+
+        <Button
+          title={t("me.feedback")}
+          variant="secondary"
+          onPress={() => nav.navigate("Feedback")}
           style={{ marginTop: SPACING.md }}
         />
 
@@ -207,6 +223,18 @@ const styles = StyleSheet.create({
   rowLabel: { color: COLORS.textSecondary },
   rowValue: { color: COLORS.textPrimary, fontWeight: "600" },
   rowValueLink: { color: COLORS.accent, fontWeight: "700" },
+  navCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: SPACING.md,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    ...SHADOW.sm,
+  },
+  navCardText: { color: COLORS.textPrimary, fontWeight: "700", fontSize: FONT_SIZE.md },
+  navCardChevron: { color: COLORS.textTertiary, fontSize: 22, fontWeight: "300" },
   version: {
     color: COLORS.textTertiary,
     fontSize: FONT_SIZE.xs,

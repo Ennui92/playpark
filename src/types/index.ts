@@ -118,6 +118,8 @@ export type RootStackParamList = {
   FriendProfile: { familyId: string };
   QRShare: undefined;
   QRScan: undefined;
+  History: undefined;
+  Feedback: undefined;
 };
 
 export type MainTabParamList = {

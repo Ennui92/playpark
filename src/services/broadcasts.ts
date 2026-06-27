@@ -117,6 +117,20 @@ export async function getActiveFeed(): Promise<BroadcastFeedItem[]> {
     .filter((b) => b.expires_at > nowIso);
 }
 
+// Every outing this family has broadcast — the personal "where you've been"
+// timeline. Sorted newest-first client-side (a family won't have enough
+// outings to warrant a server-side order, so no extra index is needed).
+export async function getMyOutingHistory(
+  familyId: string
+): Promise<BroadcastFeedItem[]> {
+  const snap = await getDocs(
+    query(collection(db, "broadcasts"), where("family_id", "==", familyId))
+  );
+  return snap.docs
+    .map((d) => enrich(d.id, d.data()))
+    .sort((a, b) => new Date(b.planned_at).getTime() - new Date(a.planned_at).getTime());
+}
+
 // My single active broadcast (any landmark), or null. The "one active" guard
 // is global per family, so this is how a screen knows whether I'm already out.
 export async function getMyActiveBroadcast(

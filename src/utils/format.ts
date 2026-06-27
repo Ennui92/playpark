@@ -10,3 +10,10 @@ export function formatWhen(date: Date): string {
   if (isTomorrow(date)) return `Tomorrow at ${time}`;
   return `${format(date, "EEE, MMM d")} at ${time}`;
 }
+
+// Absolute calendar date for history rows: "Sat, Jun 14" this year, else
+// "Jun 14, 2025". No time — history cares about the day, not the minute.
+export function formatDate(date: Date): string {
+  const sameYear = date.getFullYear() === new Date().getFullYear();
+  return sameYear ? format(date, "EEE, MMM d") : format(date, "MMM d, yyyy");
+}
