@@ -230,11 +230,7 @@ export function FamilyMembersScreen() {
                       </View>
 
                       <Text style={styles.miniLabel}>{t("fam.hairStyle")}</Text>
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.hairRow}
-                      >
+                      <View style={styles.hairGrid}>
                         {HAIR_VARIANTS.map((v) => (
                           <TouchableOpacity
                             key={v}
@@ -247,7 +243,7 @@ export function FamilyMembersScreen() {
                             />
                           </TouchableOpacity>
                         ))}
-                      </ScrollView>
+                      </View>
 
                       <TouchableOpacity onPress={() => setPickerOpen(false)} style={styles.doneBtn}>
                         <Text style={styles.doneText}>{t("common.done")}</Text>
@@ -397,7 +393,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   swatchActive: { borderWidth: 3, borderColor: COLORS.accent },
-  hairRow: { gap: SPACING.sm, paddingVertical: 2 },
+  hairGrid: { flexDirection: "row", flexWrap: "wrap", gap: SPACING.sm },
   hairBtn: {
     width: 56,
     height: 56,
