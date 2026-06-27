@@ -13,7 +13,7 @@ import {
   documentId,
 } from "firebase/firestore";
 import { db } from "@/config/firebase";
-import { Family, FriendRequest } from "@/types";
+import { Family, FriendFamily, FriendRequest } from "@/types";
 import { getMyFamilyId } from "@/services/me";
 
 // Ξ²β€β‚¬Ξ²β€β‚¬ Friend graph Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬Ξ²β€β‚¬
@@ -121,15 +121,34 @@ export async function removeFriendship(otherFamilyId: string): Promise<void> {
   ]);
 }
 
-export async function getFriendFamilies(myFamilyId: string): Promise<Family[]> {
+export async function getFriendFamilies(myFamilyId: string): Promise<FriendFamily[]> {
   const edges = await getDocs(collection(db, "families", myFamilyId, "friends"));
   const fams = await Promise.all(
     edges.docs.map(async (e) => {
       const f = await getDoc(doc(db, "families", e.id));
-      return f.exists() ? ({ id: f.id, ...(f.data() as Omit<Family, "id">) } as Family) : null;
+      if (!f.exists()) return null;
+      const note = ((e.data() as any).note ?? null) as string | null;
+      return { id: f.id, ...(f.data() as Omit<Family, "id">), note } as FriendFamily;
     })
   );
-  return fams.filter((f): f is Family => f !== null);
+  return fams.filter((f): f is FriendFamily => f !== null);
+}
+
+// My private note about a friend, stored on my side of the edge
+// (families/{me}/friends/{them}). Only I can read or write it.
+export async function getFriendNote(friendFamilyId: string): Promise<string | null> {
+  const myFamily = await getMyFamilyId();
+  const snap = await getDoc(doc(db, "families", myFamily, "friends", friendFamilyId));
+  return snap.exists() ? (((snap.data() as any).note ?? null) as string | null) : null;
+}
+
+export async function setFriendNote(friendFamilyId: string, note: string): Promise<void> {
+  const myFamily = await getMyFamilyId();
+  await setDoc(
+    doc(db, "families", myFamily, "friends", friendFamilyId),
+    { note: note.trim() },
+    { merge: true }
+  );
 }
 
 export async function searchUsername(prefix: string) {

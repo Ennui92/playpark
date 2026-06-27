@@ -99,6 +99,11 @@ export interface BroadcastReaction {
   created_at: string;
 }
 
+// A friend family plus my private note about them (read from my edge doc).
+export interface FriendFamily extends Family {
+  note: string | null;
+}
+
 // Pending incoming friend request, enriched with the sender's family.
 export interface FriendRequest {
   id: string;

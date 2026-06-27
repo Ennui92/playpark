@@ -40,38 +40,57 @@ export function HomeScreen() {
   const [joiningCount, setJoiningCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // True when the feed call itself failed — so we keep the last good feed and
+  // show a retry instead of a misleading "no one's out".
+  const [feedError, setFeedError] = useState(false);
 
   const load = useCallback(async () => {
     if (!family) return;
     try {
+      // Fetch each source independently so one failing call can't blank the
+      // whole screen (a feed hiccup used to silently read as "no one's out").
       const [zipLms, fd, mt, favLms] = await Promise.all([
-        getLandmarksByZip(family.zip),
-        getActiveFeed(),
-        getMutedLandmarkIds(family.id),
-        getFavoriteLandmarks(family.id),
+        getLandmarksByZip(family.zip).catch(() => null),
+        getActiveFeed().catch((e) => {
+          console.warn("[Home] feed load failed:", e?.message ?? e);
+          return null;
+        }),
+        getMutedLandmarkIds(family.id).catch(() => null),
+        getFavoriteLandmarks(family.id).catch(() => null),
       ]);
+
       // "My places" = everything in my postal code PLUS everything I've
       // saved, anywhere. Saved spots are no longer caged to my PLZ, so an
       // out-of-area place I saved (or RSVP'd "coming" to) stays in my list
       // and I can broadcast it. Dedupe by id.
-      const byId = new Map<string, Landmark>();
-      for (const l of zipLms) byId.set(l.id, l);
-      for (const l of favLms) byId.set(l.id, l);
-      setLandmarks([...byId.values()]);
-      setFeed(fd);
-      setMuted(mt);
-      setFavs(new Set(favLms.map((l) => l.id)));
-
-      // How many friends have RSVPed "coming" to MY active broadcast(s)?
-      const mine = fd.filter((b) => b.family_id === family.id);
-      let joining = 0;
-      if (mine.length) {
-        const rs = await Promise.all(mine.map((b) => getRsvpsForBroadcast(b.id)));
-        joining = rs
-          .flat()
-          .filter((r) => r.status === "coming" && r.family_id !== family.id).length;
+      if (zipLms || favLms) {
+        const byId = new Map<string, Landmark>();
+        for (const l of zipLms ?? []) byId.set(l.id, l);
+        for (const l of favLms ?? []) byId.set(l.id, l);
+        setLandmarks([...byId.values()]);
       }
-      setJoiningCount(joining);
+      if (mt) setMuted(mt);
+      if (favLms) setFavs(new Set(favLms.map((l) => l.id)));
+
+      if (fd) {
+        setFeed(fd);
+        setFeedError(false);
+        // How many friends have RSVPed "coming" to MY active broadcast(s)?
+        const mine = fd.filter((b) => b.family_id === family.id);
+        let joining = 0;
+        if (mine.length) {
+          const rs = await Promise.all(
+            mine.map((b) => getRsvpsForBroadcast(b.id).catch(() => []))
+          );
+          joining = rs
+            .flat()
+            .filter((r) => r.status === "coming" && r.family_id !== family.id).length;
+        }
+        setJoiningCount(joining);
+      } else {
+        // Keep the last good feed; flag the error so the UI offers a retry.
+        setFeedError(true);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -266,6 +285,19 @@ export function HomeScreen() {
               <Text style={styles.addText}>{t("home.addPlace")}</Text>
             </TouchableOpacity>
 
+            {feedError && (
+              <TouchableOpacity
+                style={styles.feedErrorBanner}
+                onPress={() => {
+                  setRefreshing(true);
+                  load();
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.feedErrorText}>{t("home.feedError")}</Text>
+              </TouchableOpacity>
+            )}
+
             {/* Live now — every friend who's currently out, ANY place, even
                 ones outside my ZIP or that I haven't saved. Tap → landmark. */}
             {friendBroadcasts.length > 0 && (
@@ -423,6 +455,14 @@ const styles = StyleSheet.create({
   addPlus: { fontSize: FONT_SIZE.lg, color: COLORS.accentDark, fontWeight: "800" },
   addText: { color: COLORS.accentDark, fontWeight: "700" },
 
+  feedErrorBanner: {
+    marginTop: SPACING.md,
+    backgroundColor: COLORS.accentLight,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+  },
+  feedErrorText: { color: COLORS.accentDark, fontWeight: "600", fontSize: FONT_SIZE.sm },
   // "Live now" — the can't-miss strip of friends currently out.
   liveSection: { marginTop: SPACING.xl },
   liveHeader: {

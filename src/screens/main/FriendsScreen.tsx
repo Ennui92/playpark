@@ -29,7 +29,7 @@ import {
 import { getActiveFeed } from "@/services/broadcasts";
 import { useSession } from "@/contexts/SessionContext";
 import { useT } from "@/i18n";
-import { Family, FriendRequest, BroadcastFeedItem, RootStackParamList } from "@/types";
+import { FriendFamily, FriendRequest, BroadcastFeedItem, RootStackParamList } from "@/types";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -38,7 +38,7 @@ export function FriendsScreen() {
   const nav = useNavigation<Nav>();
   const { family, user, refreshBadges } = useSession();
   const t = useT();
-  const [friends, setFriends] = useState<Family[]>([]);
+  const [friends, setFriends] = useState<FriendFamily[]>([]);
   const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([]);
   // family_id → that friend's current active broadcast (so we can show a
   // pulsing "out now" cue and link straight to where they are).
@@ -137,7 +137,7 @@ export function FriendsScreen() {
     }
   }
 
-  function confirmRemove(f: Family) {
+  function confirmRemove(f: FriendFamily) {
     showDialog(t("friends.removeTitle", { name: f.name }), t("friends.removeSub"), [
       { text: t("common.cancel"), style: "cancel" },
       {
@@ -300,6 +300,11 @@ export function FriendsScreen() {
                 ) : (
                   <Text style={styles.friendZip}>{item.zip}</Text>
                 )}
+                {!!item.note && (
+                  <Text style={styles.friendNote} numberOfLines={2}>
+                    {item.note}
+                  </Text>
+                )}
               </View>
             </TouchableOpacity>
           );
@@ -404,6 +409,12 @@ const styles = StyleSheet.create({
   friendName: { fontSize: FONT_SIZE.md, fontWeight: "700", color: COLORS.textPrimary },
   friendZip: { color: COLORS.textSecondary, marginTop: 2 },
   friendLive: { color: COLORS.ever, fontWeight: "700", marginTop: 2 },
+  friendNote: {
+    color: COLORS.textTertiary,
+    fontSize: FONT_SIZE.sm,
+    fontStyle: "italic",
+    marginTop: 2,
+  },
   empty: { alignItems: "center", paddingHorizontal: SPACING.xl, paddingTop: SPACING.xl },
   emptyEmoji: { fontSize: 56, marginBottom: SPACING.md },
   emptyTitle: { fontSize: FONT_SIZE.lg, fontWeight: "700", color: COLORS.textPrimary },

@@ -141,6 +141,19 @@ async function main() {
     return;
   }
 
+  if (cmd === "notetest") {
+    const b = await ensureB(a.zip);
+    try {
+      await setDoc(doc(wdb, "families", b.familyId, "friends", a.familyId), { note: "sim note test" }, { merge: true });
+      console.log("friend-note write OK");
+    } catch (e) { console.log("NOTE WRITE ERROR:", e.code, e.message); }
+    const snap = await getDoc(doc(wdb, "families", b.familyId, "friends", a.familyId));
+    console.log("note read back:", snap.data()?.note);
+    await setDoc(doc(wdb, "families", b.familyId, "friends", a.familyId), { note: "" }, { merge: true });
+    console.log("cleared test note");
+    return;
+  }
+
   if (cmd === "reacttest") {
     const b = await ensureB(a.zip);
     const bcs = await getDocs(query(collection(wdb, "broadcasts"), where("family_id", "==", b.familyId)));

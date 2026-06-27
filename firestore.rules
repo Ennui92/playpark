@@ -57,6 +57,9 @@ service cloud.firestore {
         // between the two families (prevents force-friending strangers).
         allow create: if (isMyFamily(fid) || isMyFamily(otherId)) &&
                          (reqExists(fid, otherId) || reqExists(otherId, fid));
+        // Only the edge owner can edit it (e.g. their private note about the
+        // friend). Updates can't forge a friendship — the edge already exists.
+        allow update: if isMyFamily(fid);
         allow delete: if isMyFamily(fid) || isMyFamily(otherId);
       }
 

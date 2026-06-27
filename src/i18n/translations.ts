@@ -283,6 +283,11 @@ export const en = {
   "fp.removeFriend": "Remove friend",
   "fp.notFound": "Profile not found.",
   "fp.couldntRemove": "Couldn't remove",
+  "fp.noteLabel": "Your note",
+  "fp.notePlaceholder": "e.g. Jacob's parents, met them at the Kranoldplatz market",
+  "fp.noteHint": "Only you can see this.",
+  "fp.saveNote": "Save note",
+  "home.feedError": "Couldn't load who's out. Pull down to refresh.",
 
   // ─── Map ────────────────────────────────────────────────────────────────
   "map.directions": "↗ Directions",
@@ -568,6 +573,11 @@ export const de: Record<TranslationKey, string> = {
   "fp.removeFriend": "Freund entfernen",
   "fp.notFound": "Profil nicht gefunden.",
   "fp.couldntRemove": "Konnte nicht entfernen",
+  "fp.noteLabel": "Deine Notiz",
+  "fp.notePlaceholder": "z.B. Jacobs Eltern, am Kranoldplatz-Markt kennengelernt",
+  "fp.noteHint": "Nur du kannst das sehen.",
+  "fp.saveNote": "Notiz speichern",
+  "home.feedError": "Konnte nicht laden, wer unterwegs ist. Zum Aktualisieren herunterziehen.",
 
   "map.directions": "↗ Route",
   "map.satellite": "🛰 Satellit",

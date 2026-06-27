@@ -7,11 +7,13 @@ import {
   Image,
   ActivityIndicator,
   TouchableOpacity,
+  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { getFamilyById, getFamilyActivity } from "@/services/profile";
-import { removeFriendship } from "@/services/friends";
+import { removeFriendship, getFriendNote, setFriendNote } from "@/services/friends";
+import { Button } from "@/components/Button";
 import { showDialog } from "@/components/dialog";
 import { useT } from "@/i18n";
 import { Family, RootStackParamList } from "@/types";
@@ -31,16 +33,36 @@ export function FriendProfileScreen() {
     landmarksContributed: number;
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [note, setNote] = useState("");
+  const [savedNote, setSavedNote] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
 
   const load = useCallback(async () => {
-    const [f, act] = await Promise.all([
+    const [f, act, n] = await Promise.all([
       getFamilyById(familyId),
       getFamilyActivity(familyId),
+      getFriendNote(familyId),
     ]);
     setFamily(f);
     setActivity(act);
+    setNote(n ?? "");
+    setSavedNote(n ?? "");
     setLoading(false);
   }, [familyId]);
+
+  const noteChanged = note.trim() !== savedNote;
+
+  async function saveNote() {
+    setSavingNote(true);
+    try {
+      await setFriendNote(familyId, note);
+      setSavedNote(note.trim());
+    } catch (e: any) {
+      showDialog(t("common.somethingWrong"), e?.message ?? t("common.tryAgain"));
+    } finally {
+      setSavingNote(false);
+    }
+  }
 
   useEffect(() => {
     load();
@@ -125,6 +147,29 @@ export function FriendProfileScreen() {
           </View>
         </View>
 
+        <View style={styles.noteCard}>
+          <Text style={styles.noteLabel}>{t("fp.noteLabel")}</Text>
+          <TextInput
+            style={styles.noteInput}
+            value={note}
+            onChangeText={setNote}
+            placeholder={t("fp.notePlaceholder")}
+            placeholderTextColor={COLORS.textTertiary}
+            multiline
+            textAlignVertical="top"
+            maxLength={280}
+          />
+          <Text style={styles.noteHint}>{t("fp.noteHint")}</Text>
+          {noteChanged && (
+            <Button
+              title={t("fp.saveNote")}
+              onPress={saveNote}
+              loading={savingNote}
+              style={{ marginTop: SPACING.sm }}
+            />
+          )}
+        </View>
+
         <TouchableOpacity onPress={confirmRemove} style={styles.removeBtn}>
           <Text style={styles.removeBtnText}>{t("fp.removeFriend")}</Text>
         </TouchableOpacity>
@@ -171,6 +216,30 @@ const styles = StyleSheet.create({
   },
   statValue: { fontSize: FONT_SIZE.xxl, fontWeight: "800", color: COLORS.accent },
   statLabel: { color: COLORS.textSecondary, fontSize: FONT_SIZE.sm, marginTop: SPACING.xs },
+  noteCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    marginHorizontal: SPACING.xl,
+    marginTop: SPACING.lg,
+    ...SHADOW.sm,
+  },
+  noteLabel: {
+    color: COLORS.textSecondary,
+    fontSize: FONT_SIZE.xs,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: SPACING.sm,
+  },
+  noteInput: {
+    minHeight: 64,
+    color: COLORS.textPrimary,
+    fontSize: FONT_SIZE.md,
+    lineHeight: 21,
+    padding: 0,
+  },
+  noteHint: { color: COLORS.textTertiary, fontSize: FONT_SIZE.xs, marginTop: SPACING.sm },
   removeBtn: {
     alignSelf: "center",
     marginTop: SPACING.xxl,
