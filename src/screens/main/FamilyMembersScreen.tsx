@@ -26,6 +26,11 @@ import { Member, MemberRole } from "@/types";
 import { useT } from "@/i18n";
 import { COLORS, FONT_SIZE, RADIUS, SHADOW, SPACING } from "@/utils/theme";
 
+// "" = default (no modifier); the rest are the Fitzpatrick skin-tone modifiers
+// that combine with a base person emoji (e.g. "👩" + "🏽" = "👩🏽").
+const SKIN_TONES = ["", "🏻", "🏼", "🏽", "🏾", "🏿"];
+const TONEABLE = new Set(["👶", "🧒", "👦", "👧", "👩", "👨", "🧑", "🧕", "👵", "👴"]);
+
 export function FamilyMembersScreen() {
   const nav = useNavigation();
   const { family } = useSession();
@@ -44,6 +49,8 @@ export function FamilyMembersScreen() {
   const [emoji, setEmoji] = useState<string>("🧒");
   const [age, setAge] = useState("");
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  // When set, show the skin-tone variants of this base emoji.
+  const [tonePickerFor, setTonePickerFor] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!family) return;
@@ -65,6 +72,7 @@ export function FamilyMembersScreen() {
     setEmoji("🧒");
     setAge("");
     setEmojiPickerOpen(false);
+    setTonePickerFor(null);
     setEditorOpen(true);
   }
 
@@ -75,6 +83,7 @@ export function FamilyMembersScreen() {
     setEmoji(m.emoji);
     setAge(m.birth_year ? String(Math.max(0, thisYear - m.birth_year)) : "");
     setEmojiPickerOpen(false);
+    setTonePickerFor(null);
     setEditorOpen(true);
   }
 
@@ -169,24 +178,52 @@ export function FamilyMembersScreen() {
                 <View style={styles.editor}>
                   <Text style={styles.label}>{t("fam.avatarLabel")}</Text>
                   {emojiPickerOpen ? (
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.emojiRow}
-                    >
-                      {MEMBER_EMOJIS.map((e) => (
-                        <TouchableOpacity
-                          key={e}
-                          style={[styles.emojiBtn, emoji === e && styles.emojiBtnActive]}
-                          onPress={() => {
-                            setEmoji(e);
-                            setEmojiPickerOpen(false);
-                          }}
-                        >
-                          <Text style={styles.emojiBtnText}>{e}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
+                    <View>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.emojiRow}
+                      >
+                        {MEMBER_EMOJIS.map((e) => (
+                          <TouchableOpacity
+                            key={e}
+                            style={[styles.emojiBtn, emoji === e && styles.emojiBtnActive]}
+                            onPress={() => {
+                              setEmoji(e);
+                              setEmojiPickerOpen(false);
+                              setTonePickerFor(null);
+                            }}
+                            onLongPress={() => {
+                              if (TONEABLE.has(e)) setTonePickerFor(e);
+                            }}
+                          >
+                            <Text style={styles.emojiBtnText}>{e}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                      {tonePickerFor ? (
+                        <View style={styles.toneRow}>
+                          {SKIN_TONES.map((tone) => {
+                            const toned = tone ? tonePickerFor + tone : tonePickerFor;
+                            return (
+                              <TouchableOpacity
+                                key={tone || "base"}
+                                style={[styles.emojiBtn, emoji === toned && styles.emojiBtnActive]}
+                                onPress={() => {
+                                  setEmoji(toned);
+                                  setEmojiPickerOpen(false);
+                                  setTonePickerFor(null);
+                                }}
+                              >
+                                <Text style={styles.emojiBtnText}>{toned}</Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      ) : (
+                        <Text style={styles.toneHint}>{t("fam.holdForTones")}</Text>
+                      )}
+                    </View>
                   ) : (
                     <TouchableOpacity
                       style={styles.selectedAvatar}
@@ -318,6 +355,8 @@ const styles = StyleSheet.create({
   },
   emojiBtnActive: { backgroundColor: COLORS.accentLight, borderColor: COLORS.accent },
   emojiBtnText: { fontSize: 24 },
+  toneRow: { flexDirection: "row", flexWrap: "wrap", gap: SPACING.sm, marginTop: SPACING.sm },
+  toneHint: { color: COLORS.textTertiary, fontSize: FONT_SIZE.xs, marginTop: SPACING.sm },
   selectedAvatar: {
     flexDirection: "row",
     alignItems: "center",

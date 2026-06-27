@@ -39,16 +39,6 @@ export function ReactionBar({
   return (
     <View style={styles.wrap}>
       <View style={styles.topRow}>
-        {summary.length > 0 && (
-          <View style={styles.summary}>
-            {summary.map(([emoji, count]) => (
-              <View key={emoji} style={styles.pill}>
-                <Text style={styles.pillEmoji}>{emoji}</Text>
-                {count > 1 && <Text style={styles.pillCount}>{count}</Text>}
-              </View>
-            ))}
-          </View>
-        )}
         {canReact && (
           <TouchableOpacity
             style={[styles.trigger, mine ? styles.triggerActive : null]}
@@ -59,6 +49,16 @@ export function ReactionBar({
             <Text style={styles.triggerEmoji}>{mine ?? "🙂"}</Text>
             {!mine && <Text style={styles.triggerPlus}>＋</Text>}
           </TouchableOpacity>
+        )}
+        {summary.length > 0 && (
+          <View style={styles.summary}>
+            {summary.map(([emoji, count]) => (
+              <View key={emoji} style={styles.pill}>
+                <Text style={styles.pillEmoji}>{emoji}</Text>
+                {count > 1 && <Text style={styles.pillCount}>{count}</Text>}
+              </View>
+            ))}
+          </View>
         )}
       </View>
 
@@ -85,7 +85,7 @@ export function ReactionBar({
 const styles = StyleSheet.create({
   wrap: { marginTop: SPACING.sm },
   topRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: SPACING.sm },
-  summary: { flexDirection: "row", flexWrap: "wrap", gap: SPACING.xs, flex: 1 },
+  summary: { flexDirection: "row", flexWrap: "wrap", gap: SPACING.xs },
   pill: {
     flexDirection: "row",
     alignItems: "center",
