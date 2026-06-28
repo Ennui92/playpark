@@ -29,14 +29,25 @@ Supabase used passwordless **email OTP**. Firebase has no email-OTP primitive, s
 **email + password** (`signInOrCreate`) **+ Google** (`signInWithGoogle`, `@react-native-google-signin`).
 A brand-new user lands on Onboarding to create their family.
 
-## Live status (June 2026)
+## Status — migration COMPLETE and live (last updated June 2026)
+The Supabase→Firebase migration is **DONE and shipping in production.** This is NOT
+work-in-progress — do not treat the repo as mid-migration. Many features have shipped on top.
 - Firestore rules+indexes + Storage rules **deployed live**; **741 landmarks seeded**.
 - Auth providers enabled: Email/Password + Google.
 - Android preview APKs built via EAS (signed with a local keystore `preview.jks` — gitignored — whose
   SHA-1 is registered in the Firebase Android app, so Google sign-in works on the build).
-- Branch `firebase-migration` (not merged to main / not pushed).
+- **Branch `firebase-migration` is the current source of truth and is PUSHED to origin.** All session
+  work lives there. `main` still holds the OLD pre-migration Supabase code — merging to `main` is
+  optional (CI fires only on `main`: `ota-update.yml` publishes the JS bundle to the preview +
+  production channels, and `build-android.yml` runs a preview APK build).
+- **Shipped on top of the migration (all via OTA `eas update`, runtime 0.2.0):** family-member
+  avatars are now **DiceBear "adventurer" illustrated SVGs** with selectable skin tone + hair colour
+  (emoji couldn't do diverse kids) — see `src/services/avatar.ts` + `src/components/MemberAvatar.tsx`;
+  family roster (`members` subcollection); private per-friend notes; emoji reactions on outings;
+  in-app feedback (`feedback` collection); places-history timeline; resilient Home feed loader.
+  `react-native-svg` was already a dep, so the SVG avatars shipped over the air (no rebuild).
 - Cloud Functions (push) NOT deployed yet — needs Blaze. Until then in-app feed works via Firestore; background push doesn't fire.
-- `google-services.json` now points at `outside-playpark-ermis` (was the dead `nearme-5827e`).
+- `google-services.json` (tracked) points at `outside-playpark-ermis` (was the dead `nearme-5827e`).
 
 ## Conventions
 Match existing code style. Don't reintroduce Supabase. Keep service function signatures stable.
