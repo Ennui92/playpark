@@ -1,5 +1,10 @@
 # CLAUDE.md — Outside (playpark)
 
+> ## 📊 Control Panel protocol (keep the cross-app dashboard honest)
+> A shared **App Control Panel** at `../_control-panel` tracks all 4 of Ermis's apps in one view. This app's id there is **`outside`**. Two standing rules every session:
+> 1. **Report what you did.** When you ship or change something that moves this app's status (a release, a blocker cleared, a stage change), update this app's block in `../_control-panel/apps.config.json` (refresh `stage`, `store`, `next`, `readiness`), then run `node ../_control-panel/stamp-notes.mjs outside` to clear the staleness flag. The panel reads commits and version live, but the human status is curated, so only you can keep it true.
+> 2. **Publish builds online, do not hoard them locally.** When you build an Android APK or AAB, put it somewhere with a stable always-latest URL (a public GitHub Release on `Ennui92/playpark`), not only the EAS preview link DM'd through the Discord bot, and point `downloadUrl` in the panel config at it. Build local-only when explicitly asked.
+
 > ## ⚠️ BACKEND IS FIREBASE NOW (migrated off Supabase, June 2026)
 > This app no longer uses Supabase. It runs on **Firebase** — Auth + Firestore + Storage,
 > with push fan-out as Cloud Functions. Firebase project: **`outside-playpark-ermis`**.
