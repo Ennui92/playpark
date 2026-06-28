@@ -31,6 +31,8 @@ WHY YOU'LL LIKE IT
 • Status updates — let people know you're running late or heading home.
 • Friends, not strangers — adding someone sends a request they choose to accept. Nobody is added without agreeing.
 • Solo or as a family — use it just for you, or broadcast together as "the Chens."
+• Your family, recognisable — add the grown-ups and kids with illustrated avatars (any skin tone, any hair colour) so other parents can place you.
+• A little life — react to a friend's outing with an emoji, keep a private note on each friend, and look back at the places you've been together.
 • Made in Berlin, works anywhere — places are organised by your postal code.
 • English and German — switch any time.
 
@@ -67,6 +69,8 @@ DARUM WIRST DU ES MÖGEN
 • Status-Updates — sag Bescheid, wenn du dich verspätest oder auf dem Heimweg bist.
 • Freunde, keine Fremden — beim Hinzufügen wird eine Anfrage gesendet, die angenommen werden muss.
 • Allein oder als Familie — nutze es für dich oder sendet zusammen als „Familie Chen".
+• Eure Familie, erkennbar — füg Große und Kinder mit gezeichneten Avataren hinzu (jeder Hautton, jede Haarfarbe), damit andere Eltern euch zuordnen können.
+• Etwas Leben — reagier mit einem Emoji auf den Ausflug eines Freundes, notier dir privat etwas zu jedem Freund und blick auf die Orte zurück, an denen ihr zusammen wart.
 • In Berlin gemacht, funktioniert überall — Orte sind nach deiner PLZ sortiert.
 • Englisch und Deutsch — jederzeit umschaltbar.
 

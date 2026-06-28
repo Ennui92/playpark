@@ -20,6 +20,11 @@ on:
   push:
     branches:
       - main
+    # Website/docs/markdown changes don't affect the JS bundle — skip the OTA.
+    paths-ignore:
+      - 'docs/**'
+      - 'play-assets/**'
+      - '**.md'
   workflow_dispatch:
 
 jobs:

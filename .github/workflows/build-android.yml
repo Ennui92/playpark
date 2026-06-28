@@ -10,6 +10,11 @@ on:
   push:
     branches:
       - main
+    # Don't rebuild the app for website/docs/markdown-only changes.
+    paths-ignore:
+      - 'docs/**'
+      - 'play-assets/**'
+      - '**.md'
   workflow_dispatch:
 
 jobs:

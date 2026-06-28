@@ -22,7 +22,7 @@
 <body>
 <main>
   <h1>Outside — Privacy Policy</h1>
-  <p class="sub">Last updated: 2026-06-07</p>
+  <p class="sub">Last updated: 2026-06-28</p>
 
   <p>Outside is a small app for letting friends in Berlin know where you're headed for an
   outing — a playground, park, café, library, or wherever. This page describes
@@ -31,21 +31,25 @@
 
   <h2>What we collect</h2>
   <ul>
-    <li><strong>Email address</strong> — used to sign you in (one-time
-    code; no password).</li>
+    <li><strong>Email address</strong> — used to sign you in (with a
+    password, or via Google sign-in).</li>
     <li><strong>Profile</strong> — your display name, username, postal
     code (PLZ), and an optional group name (e.g. "The Chens" if you
     broadcast as a family).</li>
-    <li><strong>Optional family details</strong> — kid names, birth
-    year/month, and an emoji. Only used to label "who's coming" on a
-    broadcast. You decide whether to add any.</li>
+    <li><strong>Optional family roster</strong> — names and ages of the
+    grown-ups and kids in your family, plus a chosen illustrated avatar
+    (a cartoon character you customise, never a photo). Used so friends can
+    recognise your family. You decide whether to add any.</li>
     <li><strong>Landmarks you add</strong> — name, category, coordinates,
     and emoji of the spots you contribute (cafés, playgrounds, etc.).</li>
     <li><strong>Broadcasts</strong> — when you announce you're heading
     somewhere: the landmark, the planned time, an optional short message,
     and which kid IDs (if any) are coming.</li>
     <li><strong>Friendships</strong> — which accounts (or families) you've
-    added as friends, via QR or username search.</li>
+    added as friends, via QR or username search, plus any private note you
+    write about a friend (visible only to you).</li>
+    <li><strong>Feedback you send</strong> — if you use the in-app feedback
+    form, we store your message and the category you choose.</li>
     <li><strong>Device push token</strong> — anonymous identifier from
     Expo / Apple / Google so we can send you push notifications when a
     friend broadcasts.</li>
@@ -69,8 +73,8 @@
     you've created.</li>
     <li><strong>Friends you've added</strong>: see your display name,
     handle, ZIP, group name, kids (if you added any), and broadcasts you
-    publish to them. Row-Level Security at the database layer enforces
-    this — strangers cannot read your data.</li>
+    publish to them. Security rules at the database layer enforce this —
+    strangers cannot read your data.</li>
     <li><strong>Anyone in the app, within your ZIP</strong>: sees
     landmarks you've contributed (because the landmark catalogue is
     shared per neighbourhood). Does NOT see who added what.</li>
@@ -78,9 +82,10 @@
 
   <h2>Third parties we use</h2>
   <ul>
-    <li><strong>Supabase</strong> — hosts the database and authentication.
-    Servers are in the EU. See <a href="https://supabase.com/privacy">their
-    privacy notice</a>.</li>
+    <li><strong>Firebase (Google Cloud)</strong> — hosts the database
+    (Cloud Firestore), sign-in, and file storage. Data is stored in the EU
+    (europe-west region). See <a href="https://firebase.google.com/support/privacy">Firebase's
+    privacy and security information</a>.</li>
     <li><strong>Google Maps Platform</strong> — renders the in-app map
     and powers the "search a place" autocomplete. Coordinates you view
     are sent to Google. See <a href="https://policies.google.com/privacy">their
@@ -125,9 +130,9 @@
   <p>Outside is a side project by Ermis Zacharopoulos in Berlin. Reach me
   at <a href="mailto:zach.ermis+outside@gmail.com">zach.ermis+outside@gmail.com</a>.</p>
 
-  <p class="stamp">This is a plain-English summary. The legally-binding
-  document is the data in our Supabase project, which lives under the
-  rules of the EU GDPR and the agreements linked above.</p>
+  <p class="stamp">This is a plain-English summary. Your data lives in our
+  Firebase (Google Cloud) project under the rules of the EU GDPR and the
+  agreements linked above.</p>
 </main>
 </body>
 </html>
